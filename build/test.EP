@@ -1,0 +1,56 @@
+# EPL Interpreter Test
+
+set name as "EPL"
+set version as 1
+set ready as true
+
+show "Hello from " + name + " v" + version
+show "Interpreter is ready: " + ready
+
+set x as 10
+set y as 3
+
+set r1 as x plus y
+set r2 as x minus y
+set r3 as x times y
+set r4 as x divided by y
+set r5 as x power of 2
+
+show "Addition      : " + r1
+show "Subtraction   : " + r2
+show "Multiplication : " + r3
+show "Division      : " + r4
+show "Power         : " + r5
+
+if x is greater than y then
+    show "x is greater than y"
+!
+
+if y is any of 1, 2, 3, 4 then
+    show "y is in the list"
+otherwise
+    show "y is not in the list"
+!
+
+set total as 0
+for i from 1 to 5
+    update total as total plus i
+!
+show "Sum 1 to 5: " + total
+
+set fruits as ["apple", "banana", "cherry"]
+for each fruit in fruits
+    show "Fruit: " + fruit
+!
+
+# Activity call test
+to greet, return "Hello from activity!"!
+set msg by greet
+show msg
+
+# Activity with args
+to square, return x times x!
+set sq by square 4
+show "Square of 4: " + sq
+
+show "All tests passed!"

@@ -1,0 +1,40 @@
+{
+  "name": "epl-support",
+  "displayName": "EPL – English Programming Language",
+  "description": "File icon and language support for EPL (.ep / .EP) files",
+  "version": "0.0.2",
+  "publisher": "epl-dev",
+  "engines": {
+    "vscode": "^1.79.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Themes"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "epl",
+        "aliases": [
+          "EPL",
+          "English Programming Language"
+        ],
+        "extensions": [
+          ".ep",
+          ".EP"
+        ],
+        "icon": {
+          "light": "./icons/epl.png",
+          "dark":  "./icons/epl.png"
+        }
+      }
+    ],
+    "iconThemes": [
+      {
+        "id": "epl-icons",
+        "label": "EPL File Icons",
+        "path": "./epl-icon-theme.json"
+      }
+    ]
+  }
+}

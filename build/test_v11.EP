@@ -1,0 +1,65 @@
+### EPL v1.1 Test — Smart Collections + Smart Filter ###
+
+describe test as "Validates v1.1 Smart Collections and Where Filter"
+
+# ── Basic Smart Collections ──────────────────────────────
+
+set prices as [10, 25, 8, 42, 17, 33]
+
+set tot as total of prices
+show "Total: " + tot
+
+set avg as average of prices
+show "Average: " + avg
+
+set hi as maximum of prices
+show "Maximum: " + hi
+
+set lo as minimum of prices
+show "Minimum: " + lo
+
+set n as length of prices
+show "Count: " + n
+
+# ── Sorted and Reversed ──────────────────────────────────
+
+set asc as sorted prices
+show "Sorted: " + asc
+
+set desc as reversed asc
+show "Reversed: " + desc
+
+# ── Inline show (no intermediate variable) ───────────────
+
+show "Direct average: " + average of prices
+show "Direct max: " + maximum of prices
+
+# ── Smart Filter (where clause) ──────────────────────────
+
+set scores as [45, 82, 67, 91, 55, 78, 38, 95]
+
+set passed as scores where score at least 60
+show "Passed: " + passed
+show "Passed count: " + length of passed
+
+set failed as scores where score is less than 60
+show "Failed: " + failed
+
+set high achievers as scores where score is greater than 85
+show "High achievers: " + high achievers
+
+# ── Filter then aggregate ────────────────────────────────
+
+set pass total as total of passed
+show "Total of passed scores: " + pass total
+
+set pass avg as average of passed
+show "Average of passed: " + pass avg
+
+# ── String length ────────────────────────────────────────
+
+set name as "EPL is awesome"
+set name len as length of name
+show "Name length: " + name len
+
+show "All v1.1 tests complete!"

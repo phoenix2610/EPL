@@ -1,0 +1,55 @@
+### EPL v1.4 Test — Dashboard ###
+
+describe dashboard as "Grade and revenue dashboard — EPL v1.4 demo"
+
+set months as ["Jan", "Feb", "Mar", "Apr", "May", "Jun"]
+set revenue as [12000, 19000, 15000, 25000, 22000, 31000]
+
+set subjects as ["Math", "Science", "English", "History", "Art"]
+set scores as [85, 92, 78, 91, 74]
+
+set students as [["Alice", 91], ["Bob", 85], ["Carol", 78], ["Dave", 92], ["Eve", 74]]
+
+set passed as scores where score at least 80
+set avg score as average of scores
+set top score as maximum of scores
+set pass count as length of passed
+
+make page saved as "dashboard.html" styled as "persian blue"
+
+    heading "Grade Dashboard"
+    subheading "Term 2 — Academic Year 2026"
+    paragraph "This dashboard summarizes student performance and revenue trends."
+    divider
+
+    section "Key Metrics"
+        row
+            make stat "Average Score" from avg score
+            make stat "Top Score" from top score
+            make stat "Students Passed" from pass count
+            make stat "Total Revenue" from total of revenue as formatted
+        !
+    !
+
+    section "Revenue Trend"
+        make line chart for x axis as months and y axis as revenue titled "Monthly Revenue"
+    !
+
+    section "Subject Performance"
+        make bar chart for x axis as subjects and y axis as scores titled "Scores by Subject"
+    !
+
+    section "Student Records"
+        make table from students titled "Student List" with headers ["Name", "Score"]
+    !
+
+    section "Score Analysis"
+        make report from scores titled "Class Statistics"
+    !
+
+    section "Acknowlegement"
+        paragraph "This dashboard was generated using EPL v1.4"
+       
+    !
+
+!    

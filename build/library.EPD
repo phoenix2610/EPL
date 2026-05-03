@@ -1,0 +1,91 @@
+EPD 1.0 — library.ep
+generated: 2026-05-03 08:36:44
+─────────────────────────────────────────────
+
+[program ]  line 1         library.ep
+  "A complete library management system handling books, members, borrowing, returns, fines, and reporting across a catalogue of 15 books and 8 members"
+
+[data    ]  line 12        book titles
+  type: list
+  "Master list of all books in the library — titles, authors, genres, and availability"
+
+[data    ]  line 30        member ids
+  type: list
+  "All registered library members with their IDs, names, membership tier, and current borrow counts"
+
+[data    ]  line 50        borrow log
+  type: list
+  "Active borrowing records — each entry is a string formatted as memberID:bookIndex:daysOverdue"
+
+[data    ]  line 61        popular threshold
+  type: number
+  "Global thresholds — borrow limits per tier, fine rates, popularity cutoff, and short book definition"
+
+[activity]  lines 79-90        count available
+  "Counts and returns the sum number of books currently available for borrowing"
+
+[activity]  lines 93-104       count unavailable
+  "Counts and returns the sum number of books currently checked out"
+
+[activity]  lines 107-116       sum pages in library
+  "Sums the page counts of all books and returns the sum"
+
+[activity]  lines 119-132       most borrowed book
+  "Scans the borrow count list and returns the index of the most borrowed book"
+
+[activity]  lines 135-148       least borrowed book
+  "Scans the borrow count list and returns the index of the least borrowed book"
+
+[activity]  lines 151-157       average borrows
+  "Computes and returns the mean borrow count across all books in the catalogue"
+
+[activity]  lines 160-171       books by genre
+  "Counts how many books belong to target genre and returns that count"
+
+[activity]  lines 180-186       sum fines
+  "Sums all outstanding member fines and returns the library's sum receivable amount"
+
+[activity]  lines 189-197       fined members count
+  "Counts and returns how many members currently have outstanding fines greater than zero"
+
+[activity]  lines 200-213       highest fine member
+  "Returns the index of the member carrying the largest outstanding fine"
+
+[activity]  lines 216-224       gold members
+  "Counts and returns the number of Gold tier members"
+
+[activity]  lines 227-235       silver members
+  "Counts and returns the number of Silver tier members"
+
+[activity]  lines 238-246       bronze members
+  "Counts and returns the number of Bronze tier members"
+
+[activity]  lines 256-264       overdue entries
+  "Scans the borrow log and counts entries where days overdue is greater than zero"
+
+[activity]  lines 267-274       sum overdue days
+  "Sums all overdue days across active borrow log entries and returns the sum"
+
+[activity]  line 282       print divider
+  "Prints a full-width separator line for report formatting"
+
+[activity]  line 285       print thin divider
+  "Prints a narrow separator line for subsection formatting"
+
+[activity]  lines 288-309       print book catalogue report
+  "Prints the full book catalogue with availability, genre, author, and borrow count for all 15 books"
+
+[activity]  lines 312-345       print member report
+  "Prints the full member roster with tier, current borrows, borrow limit, and outstanding fine"
+
+[activity]  lines 348-367       print overdue report
+  "Prints all active borrow log entries flagging any overdue items and their calculated fines"
+
+[activity]  lines 370-431       print summary report
+  "Prints aggregate library statistics — availability, popularity, genre breakdown, member tiers, fines, and overdue totals"
+
+[block   ]  lines 438-440       entry point
+  "Main execution block — runs all four report sections in sequence with error handling"
+
+─────────────────────────────────────────────
+entries: 27 total  |  21 activities  |  1 blocks  |  4 data

@@ -1,0 +1,28 @@
+describe grade analyzer as "Analyzes student scores — term reporting and pass/fail tracking"
+
+set scores as [45, 82, 67, 91, 55, 78, 38, 95, 73, 61]
+set subjects as ["Math", "Science", "English", "History", "Art"]
+
+describe add numbers as "Returns the sum of two numbers"
+to add numbers
+    return num1 plus num2
+!
+
+describe divide safely as "Divides val1 by val2 — validates divisor is not zero"
+to divide safely
+    check that val2 is not 0
+    if val2 equals 0 then
+        return "Error: Division by zero"
+    !
+    return val1 divided by val2
+!
+
+describe passed scores as "Filters scores at or above the pass threshold of 60"
+set passed as scores where score at least 60
+
+describe failed scores as "Filters scores below the pass threshold of 60"
+set failed as scores where score less than 60
+
+show "=== Grade Report ==="
+show "Average: " + average of scores rounded to 1
+show "Top score: " + maximum of scores

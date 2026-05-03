@@ -1,0 +1,14 @@
+{
+  "iconDefinitions": {
+    "_epl_file": {
+      "iconPath": "./icons/epl.png"
+    }
+  },
+  "fileExtensions": {
+    "ep": "_epl_file",
+    "EP": "_epl_file"
+  },
+  "languageIds": {
+    "epl": "_epl_file"
+  }
+}

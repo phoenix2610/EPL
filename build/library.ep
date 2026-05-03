@@ -1,0 +1,455 @@
+### Library Management System ###
+### EPL v1.5 — Full system with describe navigation index ###
+
+describe library system as "A complete library management system handling books, members, borrowing, returns, fines, and reporting across a catalogue of 15 books and 8 members"
+
+# ================================================================
+# SECTION 1: Book Catalogue
+# ================================================================
+
+describe book catalogue as "Master list of all books in the library — titles, authors, genres, and availability"
+
+set book titles as ["The Great Gatsby", "To Kill a Mockingbird", "1984", "Pride and Prejudice", "The Hobbit", "Brave New World", "The Catcher in the Rye", "Lord of the Flies", "Animal Farm", "Of Mice and Men", "Fahrenheit 451", "The Alchemist", "Don Quixote", "Crime and Punishment", "The Odyssey"]
+
+set book authors as ["F. Scott Fitzgerald", "Harper Lee", "George Orwell", "Jane Austen", "J.R.R. Tolkien", "Aldous Huxley", "J.D. Salinger", "William Golding", "George Orwell", "John Steinbeck", "Ray Bradbury", "Paulo Coelho", "Miguel de Cervantes", "Fyodor Dostoevsky", "Homer"]
+
+set book genres as ["Fiction", "Fiction", "Dystopia", "Romance", "Fantasy", "Dystopia", "Fiction", "Fiction", "Satire", "Fiction", "Dystopia", "Fiction", "Adventure", "Fiction", "Epic"]
+
+set book pages as [180, 281, 328, 432, 310, 311, 277, 224, 112, 112, 256, 208, 1072, 545, 541]
+set book available as [true, false, true, true, false, true, true, false, true, true, false, true, true, false, true]
+set book borrow count as [12, 34, 28, 19, 41, 15, 22, 30, 25, 18, 20, 33, 8, 14, 11]
+set book count as 15
+
+
+# ================================================================
+# SECTION 2: Member Registry
+# ================================================================
+
+describe member registry as "All registered library members with their IDs, names, membership tier, and current borrow counts"
+
+set member ids as ["M001", "M002", "M003", "M004", "M005", "M006", "M007", "M008"]
+set member names as ["Alice Chen", "Bob Martinez", "Carol White", "David Kim", "Eva Singh", "Frank Brown", "Grace Lee", "Henry Park"]
+set member tiers as ["Gold", "Silver", "Bronze", "Gold", "Silver", "Bronze", "Gold", "Silver"]
+set member borrows as [2, 1, 0, 3, 1, 0, 2, 1]
+set member fines as [0, 5, 0, 15, 0, 10, 0, 0]
+set member count as 8
+
+set bronze limit as 2
+set silver limit as 4
+set gold limit as 6
+set fine per day as 2
+set pass mark as 60
+
+
+# ================================================================
+# SECTION 3: Borrow and Return Log
+# ================================================================
+
+describe borrow log as "Active borrowing records — each entry is a string formatted as memberID:bookIndex:daysOverdue"
+
+set borrow log as ["M002:1:0", "M004:4:7", "M004:7:0", "M004:13:3", "M005:10:0", "M006:0:5", "M007:3:0", "M007:11:0", "M008:6:0", "M001:2:0", "M001:8:0", "M003:5:0"]
+
+set log count as 12
+
+
+# ================================================================
+# SECTION 4: Configuration and Thresholds
+# ================================================================
+
+describe system config as "Global thresholds — borrow limits per tier, fine rates, popularity cutoff, and short book definition"
+
+set popular threshold as 25
+set short book pages as 200
+set overdue warning as 5
+set max fine cap as 50
+
+
+# ================================================================
+# SECTION 5: Core Utility Activities (Removed - using native indexing)
+# ================================================================
+
+
+# ================================================================
+# SECTION 6: Book Analysis Activities
+# ================================================================
+
+
+
+describe count available as "Counts and returns the sum number of books currently available for borrowing"
+to count available
+    set count as 0
+    set i as 0
+    while i less than book count
+        set avail as item i of book available
+        if avail then
+            update count as count plus 1
+        !
+        update i as i plus 1
+    !
+    return count
+!
+
+describe count unavailable as "Counts and returns the sum number of books currently checked out"
+to count unavailable
+    set count as 0
+    set i as 0
+    while i less than book count
+        set avail as item i of book available
+        if not avail then
+            update count as count plus 1
+        !
+        update i as i plus 1
+    !
+    return count
+!
+
+describe sum pages in library as "Sums the page counts of all books and returns the sum"
+to sum pages in library
+    set sum as 0
+    set i as 0
+    while i less than book count
+        set p as item i of book pages
+        update sum as sum plus p
+        update i as i plus 1
+    !
+    return sum
+!
+
+describe most borrowed book as "Scans the borrow count list and returns the index of the most borrowed book"
+to most borrowed book
+    set best idx as 0
+    set best count as item 0 of book borrow count
+    set i as 1
+    while i less than book count
+        set c as item i of book borrow count
+        if c greater than best count then
+            update best count as c
+            update best idx as i
+        !
+        update i as i plus 1
+    !
+    return best idx
+!
+
+describe least borrowed book as "Scans the borrow count list and returns the index of the least borrowed book"
+to least borrowed book
+    set worst idx as 0
+    set worst count as item 0 of book borrow count
+    set i as 1
+    while i less than book count
+        set c as item i of book borrow count
+        if c less than worst count then
+            update worst count as c
+            update worst idx as i
+        !
+        update i as i plus 1
+    !
+    return worst idx
+!
+
+describe average borrows as "Computes and returns the mean borrow count across all books in the catalogue"
+to average borrows
+    set sum as 0
+    for each c in book borrow count
+        update sum as sum plus c
+    !
+    return sum divided by book count
+!
+
+describe books by genre as "Counts how many books belong to target genre and returns that count"
+to books by genre
+    set count as 0
+    set i as 0
+    while i less than book count
+        set g as item i of book genres
+        if g is target genre then
+            update count as count plus 1
+        !
+        update i as i plus 1
+    !
+    return count
+!
+
+
+# ================================================================
+# SECTION 7: Member Analysis Activities
+# ================================================================
+
+
+describe sum fines as "Sums all outstanding member fines and returns the library's sum receivable amount"
+to sum fines
+    set sum as 0
+    for each fine in member fines
+        update sum as sum plus fine
+    !
+    return sum
+!
+
+describe fined members count as "Counts and returns how many members currently have outstanding fines greater than zero"
+to fined members count
+    set count as 0
+    for each fine in member fines
+        if fine greater than 0 then
+            update count as count plus 1
+        !
+    !
+    return count
+!
+
+describe highest fine member as "Returns the index of the member carrying the largest outstanding fine"
+to highest fine member
+    set best idx as 0
+    set best fine as item 0 of member fines
+    set i as 1
+    while i less than member count
+        set f as item i of member fines
+        if f greater than best fine then
+            update best fine as f
+            update best idx as i
+        !
+        update i as i plus 1
+    !
+    return best idx
+!
+
+describe gold members as "Counts and returns the number of Gold tier members"
+to gold members
+    set count as 0
+    for each tier in member tiers
+        if tier is "Gold" then
+            update count as count plus 1
+        !
+    !
+    return count
+!
+
+describe silver members as "Counts and returns the number of Silver tier members"
+to silver members
+    set count as 0
+    for each tier in member tiers
+        if tier is "Silver" then
+            update count as count plus 1
+        !
+    !
+    return count
+!
+
+describe bronze members as "Counts and returns the number of Bronze tier members"
+to bronze members
+    set count as 0
+    for each tier in member tiers
+        if tier is "Bronze" then
+            update count as count plus 1
+        !
+    !
+    return count
+!
+
+
+# ================================================================
+# SECTION 8: Overdue and Fine Calculation
+# ================================================================
+
+
+
+describe overdue entries as "Scans the borrow log and counts entries where days overdue is greater than zero"
+to overdue entries
+    set count as 0
+    for each rec in borrow log
+        if rec is none of "M001:2:0", "M001:8:0", "M002:1:0", "M003:5:0", "M005:10:0", "M007:3:0", "M007:11:0", "M008:6:0" then
+            update count as count plus 1
+        !
+    !
+    return count
+!
+
+describe sum overdue days as "Sums all overdue days across active borrow log entries and returns the sum"
+to sum overdue days
+    set sum as 0
+    set days as [0, 7, 0, 3, 0, 5, 0, 0, 0, 0, 0, 0]
+    for each d in days
+        update sum as sum plus d
+    !
+    return sum
+!
+
+
+# ================================================================
+# SECTION 9: Report Printer Activities
+# ================================================================
+
+describe print divider as "Prints a full-width separator line for report formatting"
+to print divider, show "================================================================"!
+
+describe print thin divider as "Prints a narrow separator line for subsection formatting"
+to print thin divider, show "----------------------------------------------------------------"!
+
+describe print book catalogue report as "Prints the full book catalogue with availability, genre, author, and borrow count for all 15 books"
+to print book catalogue report
+    show " "
+    show "                    BOOK CATALOGUE"
+    set by print divider
+    show "No.  Title                              Genre       Available  Borrows"
+    set by print thin divider
+    set i as 0
+    while i less than book count
+        set title as item i of book titles
+        set genre as item i of book genres
+        set avail as item i of book available
+        set borrows as item i of book borrow count
+        set avail label as "YES" if avail otherwise "NO"
+        set pop as borrows greater than popular threshold
+        set pop label as " *" if pop otherwise "  "
+        show (i plus 1) + ".  " + title + "  [" + genre + "]  " + avail label + "  " + borrows + pop label
+        update i as i plus 1
+    !
+    set by print thin divider
+    show "* = Popular (borrowed more than " + popular threshold + " times)"
+    set by print divider
+!
+
+describe print member report as "Prints the full member roster with tier, current borrows, borrow limit, and outstanding fine"
+to print member report
+    show " "
+    show "                    MEMBER REGISTRY"
+    set by print divider
+    show "ID      Name              Tier     Borrows  Limit  Fine"
+    set by print thin divider
+    set i as 0
+    while i less than member count
+        set id as item i of member ids
+        set name as item i of member names
+        set tier as item i of member tiers
+        set borrows as item i of member borrows
+        
+        set limit as bronze limit
+        if tier is "Gold" then
+            update limit as gold limit
+        !
+        if tier is "Silver" then
+            update limit as silver limit
+        !
+        
+        set fine as item i of member fines
+        set can as borrows less than limit
+        if fine greater than max fine cap then
+            update can as false
+        !
+        set flag as " !" if not can otherwise "  "
+        show id + "  " + name + "  " + tier + "  " + borrows + "/" + limit + "  $" + fine + flag
+        update i as i plus 1
+    !
+    set by print thin divider
+    show "! = Cannot borrow (limit reached or fine exceeds cap)"
+    set by print divider
+!
+
+describe print overdue report as "Prints all active borrow log entries flagging any overdue items and their calculated fines"
+to print overdue report
+    show " "
+    show "                    OVERDUE REPORT"
+    set by print divider
+    set overdue days list as [0, 7, 0, 3, 0, 5, 0, 0, 0, 0, 0, 0]
+    set i as 0
+    while i less than log count
+        set rec as item i of borrow log
+        set days as item i of overdue days list
+        if days greater than 0 then
+            set raw fine as days times fine per day
+            set fine as raw fine if raw fine less than max fine cap otherwise max fine cap
+            show "OVERDUE: " + rec + "  |  Days: " + days + "  |  Fine: $" + fine
+        otherwise
+            show "OK:      " + rec
+        !
+        update i as i plus 1
+    !
+    set by print divider
+!
+
+describe print summary report as "Prints aggregate library statistics — availability, popularity, genre breakdown, member tiers, fines, and overdue totals"
+to print summary report
+    show " "
+    show "                    LIBRARY SUMMARY"
+    set by print divider
+
+    set avail count by count available
+    set out count by count unavailable
+    set sum pgs by sum pages in library
+    set most idx by most borrowed book
+    set least idx by least borrowed book
+    set avg borrow by average borrows
+    set sum fine by sum fines
+    set fine members by fined members count
+    set highest idx by highest fine member
+    set overdue count by overdue entries
+    set overdue sum by sum overdue days
+    set gold count by gold members
+    set silver count by silver members
+    set bronze count by bronze members
+    set target genre as "Fiction"
+    set fiction count by books by genre
+    update target genre as "Dystopia"
+    set dystopia count by books by genre
+    update target genre as "Fantasy"
+    set fantasy count by books by genre
+
+    show "COLLECTION"
+    show "  book count          : " + book count
+    show "  Available now        : " + avail count
+    show "  Currently checked out: " + out count
+    show "  sum pages          : " + sum pgs
+    show " "
+    show "POPULARITY"
+    set most title as item most idx of book titles
+    set most borrows as item most idx of book borrow count
+    set least title as item least idx of book titles
+    set least borrows as item least idx of book borrow count
+    show "  Most borrowed  : " + most title + " (" + most borrows + " times)"
+    show "  Least borrowed : " + least title + " (" + least borrows + " times)"
+    show "  Average borrows: " + avg borrow
+    show " "
+    show "GENRE BREAKDOWN"
+    show "  Fiction  : " + fiction count + " books"
+    show "  Dystopia : " + dystopia count + " books"
+    show "  Fantasy  : " + fantasy count + " books"
+    show " "
+    show "MEMBERS"
+    show "  member count   : " + member count
+    show "  Gold tier       : " + gold count
+    show "  Silver tier     : " + silver count
+    show "  Bronze tier     : " + bronze count
+    show " "
+    show "FINES AND OVERDUE"
+    show "  sum fines outstanding : $" + sum fine
+    show "  Members with fines      : " + fine members
+    set hf name as item highest idx of member names
+    set hf fine as item highest idx of member fines
+    show "  Highest fine — " + hf name + " : $" + hf fine
+    show "  Overdue entries         : " + overdue count
+    show "  sum overdue days      : " + overdue sum
+    set by print divider
+!
+
+
+# ================================================================
+# SECTION 10: Entry Point — Run all reports
+# ================================================================
+
+describe entry point as "Main execution block — runs all four report sections in sequence with error handling"
+
+show "================================================================"
+show "          LIBRARY MANAGEMENT SYSTEM — EPL v1.5"
+show "================================================================"
+
+attempt
+    set by print book catalogue report
+    set by print member report
+    set by print overdue report
+    set by print summary report
+if fails then
+    show "Error: Report generation failed. Check data integrity."
+!
+
+show " "
+show "All reports complete."
+show "================================================================"

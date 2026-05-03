@@ -1,0 +1,63 @@
+### EPL v1.3 Test — Connection Type ###
+
+describe test as "Validates graph creation, linking, routing and connected-to"
+
+# ── Basic Graph Creation ─────────────────────────────────
+
+set network as graph   
+show network
+
+# ── Linking nodes ────────────────────────────────────────
+
+link customer to store in network
+link store to warehouse in network
+link warehouse to supplier in network
+link customer to support in network
+link support to manager in network
+
+show network
+
+# ── Shortest Path (BFS) ──────────────────────────────────
+
+set path as route from customer to supplier in network
+show "Path customer to supplier: " + path
+
+set short path as route from customer to manager in network
+show "Path customer to manager: " + short path
+
+set same as route from store to store in network
+show "Same node route: " + same
+
+set no path as route from supplier to customer in network
+show "No path (directed): " + no path
+
+# ── Connected (reachable) nodes ──────────────────────────
+
+set reachable as connected to customer in network
+show "Reachable from customer: " + reachable
+
+set store reach as connected to store in network
+show "Reachable from store: " + store reach
+
+# ── Multiple independent graphs ──────────────────────────
+
+set org chart as graph
+link ceo to cto in org chart
+link ceo to cfo in org chart
+link cto to engineer in org chart
+link cfo to accountant in org chart
+
+set exec path as route from ceo to engineer in org chart
+show "Org path CEO to Engineer: " + exec path
+
+set under ceo as connected to ceo in org chart
+show "Under CEO: " + under ceo
+
+# ── Graph is per-variable (isolated) ────────────────────
+
+set isolated as graph
+link a node to b node in isolated
+set cross path as route from customer to b node in isolated
+show "Cross-graph route (should be empty): " + cross path
+
+show "All v1.3 tests complete!"

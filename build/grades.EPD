@@ -1,0 +1,23 @@
+EPD 1.0 — grades.ep
+generated: 2026-05-03 07:57:59
+─────────────────────────────────────────────
+
+[program ]  line 1         grades.ep
+  "Analyzes student scores — term reporting and pass/fail tracking"
+
+[activity]  lines 7-9        add numbers
+  "Returns the sum of two numbers"
+
+[activity]  lines 12-18        divide safely
+  "Divides val1 by val2 — validates divisor is not zero"
+
+[data    ]  line 21        passed
+  type: list
+  "Filters scores at or above the pass threshold of 60"
+
+[data    ]  line 24        failed
+  type: list
+  "Filters scores below the pass threshold of 60"
+
+─────────────────────────────────────────────
+entries: 5 total  |  2 activities  |  2 data

@@ -1,0 +1,36 @@
+### EPL Calculator v1.0 ###
+
+describe calculator as "A simple CLI calculator with history"
+
+set history as []
+set running as true
+
+to add, return x plus y!
+to subtract, return x minus y!
+to multiply, return x times y!
+
+to divide
+    check that y is not equals 0
+    if y equals 0 then
+        return "Error: Division by zero"
+    !
+    return x divided by y
+!
+
+while running
+    provide choice as user entry from "Select an option (1-6): "
+
+    if choice is "6" then
+        show "Goodbye!"
+        update running as false
+        continue
+    !
+
+    if choice is any of "1", "2", "3", "4" then
+        set n1 by getting number with "Enter first number: "
+        set n2 by getting number with "Enter second number: "
+        show "Result: " + n1
+    otherwise
+        show "Invalid selection."
+    !
+!

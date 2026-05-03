@@ -1,0 +1,35 @@
+/* ═══════════════════════════════════════════════════════════
+   TOKEN ADDITIONS FOR EPL v1.1
+   Add these lines to token.h inside the TokenType enum,
+   near the other collection/list keywords.
+
+   Search for TOKEN_ADD in your token.h and add after it:
+   ═══════════════════════════════════════════════════════════ */
+
+    /* v1.1 — Smart Collection keywords */
+    TOKEN_AVERAGE,        /* average  */
+    TOKEN_TOTAL,          /* total    */
+    TOKEN_MAXIMUM,        /* maximum  */
+    TOKEN_MINIMUM,        /* minimum  */
+    TOKEN_LENGTH,         /* length   */
+    TOKEN_SORTED,         /* sorted   */
+    TOKEN_REVERSED,       /* reversed */
+    TOKEN_OF,             /* of       */
+    TOKEN_WHERE,          /* where    */
+
+/* ═══════════════════════════════════════════════════════════
+   LEXER ADDITIONS FOR EPL v1.1
+   Add these entries to the keywords[] table in lexer.c.
+   The table looks like:  { "word", TOKEN_TYPE },
+   Add these entries in alphabetical order in that table:
+   ═══════════════════════════════════════════════════════════ */
+
+    { "average",  TOKEN_AVERAGE  },
+    { "length",   TOKEN_LENGTH   },
+    { "maximum",  TOKEN_MAXIMUM  },
+    { "minimum",  TOKEN_MINIMUM  },
+    { "of",       TOKEN_OF       },
+    { "reversed", TOKEN_REVERSED },
+    { "sorted",   TOKEN_SORTED   },
+    { "total",    TOKEN_TOTAL    },
+    { "where",    TOKEN_WHERE    },

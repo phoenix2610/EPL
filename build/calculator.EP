@@ -1,0 +1,84 @@
+### EPL Calculator v1.0 ###
+
+describe calc as "A simple CLI calculator with history"
+
+set history as []
+set running as true
+
+describe adding as "Returns sum of x and y"
+to add, return x plus y!
+
+describe subtracting as "Returns x minus y"
+to subtract, return x minus y!
+
+describe multiplying as "Returns product of x and y"
+to multiply, return x times y!
+
+describe dividing as "Returns x divided by y with zero check"
+to divide
+    if y equals 0 then
+        return "Error: Division by zero"
+    !
+    return x divided by y
+!
+
+while running
+    show "--- EPL Calculator ---"
+    show "1. Add"
+    show "2. Subtract"
+    show "3. Multiply"
+    show "4. Divide"
+    show "5. View History"
+    show "6. Exit"
+
+    provide choice as user entry from "Select an option (1-6): "
+
+    if choice is "6" then
+        show "Goodbye!"
+        update running as false
+        continue
+    !
+
+    if choice is "5" then
+        show "--- Calculation History ---"
+        for each record in history
+            show record
+        !
+        continue
+    !
+
+    if choice is any of "1", "2", "3", "4" then
+        provide n1 as user entry from "Enter first number: "
+        provide n2 as user entry from "Enter second number: "
+
+        set result as 0
+        set op as "?"
+
+        if choice is "1" then
+            update result as n1 plus n2
+            update op as "+"
+        !
+        if choice is "2" then
+            update result as n1 minus n2
+            update op as "-"
+        !
+        if choice is "3" then
+            update result as n1 times n2
+            update op as "*"
+        !
+        if choice is "4" then
+            if n2 equals 0 then
+                show "Error: Cannot divide by zero"
+                continue
+            !
+            update result as n1 divided by n2
+            update op as "/"
+        !
+
+        set record as n1 + " " + op + " " + n2 + " = " + result
+        show "Result: " + record
+        add record to history
+    otherwise
+        show "Invalid selection."
+    !
+!
