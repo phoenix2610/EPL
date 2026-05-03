@@ -2,7 +2,7 @@
   "name": "epl-support",
   "displayName": "EPL – English Programming Language",
   "description": "File icon and language support for EPL (.ep / .EP) files",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "publisher": "epl-dev",
   "engines": {
     "vscode": "^1.79.0"
@@ -15,23 +15,29 @@
     "languages": [
       {
         "id": "epl",
-        "aliases": [
-          "EPL",
-          "English Programming Language"
-        ],
-        "extensions": [
-          ".ep",
-          ".EP",
-          ".epf",
-          ".EPF",
-          ".epd",
-          ".EPD",
-          ".epbind",
-          ".EPBIND"
-        ],
+        "aliases": ["EPL", "English Programming Language"],
+        "extensions": [".ep", ".EP", ".epf", ".EPF"],
         "icon": {
           "light": "./icons/epl.png",
-          "dark":  "./icons/epl.png"
+          "dark": "./icons/epl.png"
+        }
+      },
+      {
+        "id": "epd",
+        "aliases": ["EPL Index", "EPD"],
+        "extensions": [".epd", ".EPD"],
+        "icon": {
+          "light": "./icons/EPD_logo.jpg",
+          "dark": "./icons/EPD_logo.jpg"
+        }
+      },
+      {
+        "id": "epbind",
+        "aliases": ["EPL Bind", "EPBIND"],
+        "extensions": [".epbind", ".EPBIND"],
+        "icon": {
+          "light": "./icons/EPBIND_logo.jpg",
+          "dark": "./icons/EPBIND_logo.jpg"
         }
       }
     ],
