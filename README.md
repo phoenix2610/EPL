@@ -186,5 +186,4 @@ make page saved as "dashboard.html" styled as "dark"
 
 ---
 <div align="center">
-  <i>Built with ❤️ by Phoenix</i>
 </div>
