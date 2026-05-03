@@ -6,7 +6,11 @@
   },
   "fileExtensions": {
     "ep": "_epl_file",
-    "EP": "_epl_file"
+    "EP": "_epl_file",
+    "epf": "_epl_file",
+    "EPF": "_epl_file",
+    "epd": "_epl_file",
+    "EPD": "_epl_file"
   },
   "languageIds": {
     "epl": "_epl_file"
