@@ -2,6 +2,12 @@
   "iconDefinitions": {
     "_epl_file": {
       "iconPath": "./icons/epl.png"
+    },
+    "_epd_file": {
+      "iconPath": "./icons/EPD_logo.jpg"
+    },
+    "_epbind_file": {
+      "iconPath": "./icons/EPBIND_logo.jpg"
     }
   },
   "fileExtensions": {
@@ -9,8 +15,10 @@
     "EP": "_epl_file",
     "epf": "_epl_file",
     "EPF": "_epl_file",
-    "epd": "_epl_file",
-    "EPD": "_epl_file"
+    "epd": "_epd_file",
+    "EPD": "_epd_file",
+    "epbind": "_epbind_file",
+    "EPBIND": "_epbind_file"
   },
   "languageIds": {
     "epl": "_epl_file"

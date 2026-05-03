@@ -2,7 +2,7 @@
   "name": "epl-support",
   "displayName": "EPL – English Programming Language",
   "description": "File icon and language support for EPL (.ep / .EP) files",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "publisher": "epl-dev",
   "engines": {
     "vscode": "^1.79.0"
@@ -25,7 +25,9 @@
           ".epf",
           ".EPF",
           ".epd",
-          ".EPD"
+          ".EPD",
+          ".epbind",
+          ".EPBIND"
         ],
         "icon": {
           "light": "./icons/epl.png",
