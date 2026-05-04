@@ -4,6 +4,7 @@
 #include <string.h>
 #include "codegen.h"
 #include "binding.h"
+#include "scene_gen.h"
 
 /* ─────────────────────────────────────────────
    EPL Code Generator — codegen.c  (v1.4)
@@ -579,6 +580,15 @@ void codegen_node(CodegenCtx *ctx, ASTNode *node) {
 void codegen_page(Interpreter *interp, Env *env, ASTNode *node) {
     const char *filename = node->as.make_page.filename;
     if (!filename || strlen(filename) == 0) filename = "output.html";
+
+    /* If page contains canvas3d — route to scene generator */
+    for (int i = 0; i < node->as.make_page.children.count; i++) {
+        ASTNode *child = node->as.make_page.children.items[i];
+        if (child && child->type == NODE_CANVAS3D) {
+            scene_gen_page(interp, env, node);
+            return;
+        }
+    }
 
     FILE *out = fopen(filename, "w");
     if (!out) {

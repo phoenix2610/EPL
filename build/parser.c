@@ -220,6 +220,12 @@ ASTNode *parse_statement(Parser *p) {
         case TOKEN_EXECUTE:     return parse_execute(p);
         case TOKEN_LINK:        return parse_link(p);
         case TOKEN_MAKE_PAGE:   return parse_make_page(p);
+        case TOKEN_CANVAS3D:    return parse_canvas3d(p);
+        case TOKEN_ORBITAL:     return parse_orbital_ring(p);
+        case TOKEN_NODE_3D:     return parse_node3d(p);
+        case TOKEN_CORE_KW:     return parse_core_star(p);
+        case TOKEN_PANEL_KW:    return parse_panel3d(p);
+        case TOKEN_DRAWER_KW:   return parse_drawer3d(p);
         case TOKEN_HEADING_OUT: return parse_text_node(p, NODE_HEADING_OUT);
         case TOKEN_SUBHEADING:  return parse_text_node(p, NODE_SUBHEADING);
         case TOKEN_PARAGRAPH:   return parse_text_node(p, NODE_PARAGRAPH);
@@ -987,6 +993,286 @@ ASTNode *parse_link(Parser *p) {
     collect_name(p, graph, MAX_TOKEN_LEN);
     strncpy(node->as.link_stmt.graph, graph, MAX_TOKEN_LEN - 1);
 
+    return node;
+}
+
+
+/* ═════════════════════════════════════════════
+   NODE3D  (v1.6)
+   node at 0.5 labeled "Task" status "completed"
+   ═════════════════════════════════════════════ */
+ASTNode *parse_node3d(Parser *p) {
+    Token t = advance(p);   /* consume 'node' */
+    ASTNode *node = ast_make_node(NODE_NODE3D, t.line, t.col);
+    node->as.node3d.angle  = 0.0;
+    node->as.node3d.status = NODE3D_PENDING;
+    node->as.node3d.label[0]= '\0';
+    node->as.node3d.desc[0] = '\0';
+
+    /* at <number> */
+    if (check(p, TOKEN_AT_KW)) {
+        advance(p);
+        if (check(p, TOKEN_NUMBER)) {
+            node->as.node3d.angle = atof(current(p).value);
+            advance(p);
+        }
+    }
+    /* labeled "text" */
+    if (check(p, TOKEN_LABELED)) {
+        advance(p);
+        if (check(p, TOKEN_STRING)) {
+            strncpy(node->as.node3d.label,
+                current(p).value, MAX_TOKEN_LEN-1);
+            advance(p);
+        }
+    }
+    /* status "completed|inprogress|overdue|pending" */
+    if (check(p, TOKEN_STATUS_KW)) {
+        advance(p);
+        if (check(p, TOKEN_STRING)) {
+            const char *s = current(p).value;
+            if      (strcmp(s,"completed")==0)  node->as.node3d.status = NODE3D_COMPLETED;
+            else if (strcmp(s,"inprogress")==0)  node->as.node3d.status = NODE3D_INPROGRESS;
+            else if (strcmp(s,"overdue")==0)     node->as.node3d.status = NODE3D_OVERDUE;
+            else                                 node->as.node3d.status = NODE3D_PENDING;
+            advance(p);
+        }
+    }
+    return node;
+}
+
+
+/* ═════════════════════════════════════════════
+   CORE STAR  (v1.6)
+   core star color "gold" labeled "Project"
+   ═════════════════════════════════════════════ */
+ASTNode *parse_core_star(Parser *p) {
+    Token t = advance(p);   /* consume 'core' */
+    match(p, TOKEN_STAR_KW);
+    ASTNode *node = ast_make_node(NODE_CORE_STAR, t.line, t.col);
+    node->as.core_star.color[0] = '\0';
+    node->as.core_star.label[0] = '\0';
+    node->as.core_star.desc[0]  = '\0';
+    strncpy(node->as.core_star.color, "gold", MAX_TOKEN_LEN-1);
+
+    if (check(p, TOKEN_WITH_COLOR)) {
+        advance(p);
+        if (check(p, TOKEN_STRING)) {
+            strncpy(node->as.core_star.color,
+                current(p).value, MAX_TOKEN_LEN-1);
+            advance(p);
+        }
+    }
+    if (check(p, TOKEN_LABELED)) {
+        advance(p);
+        if (check(p, TOKEN_STRING)) {
+            strncpy(node->as.core_star.label,
+                current(p).value, MAX_TOKEN_LEN-1);
+            advance(p);
+        }
+    }
+    return node;
+}
+
+
+/* ═════════════════════════════════════════════
+   ORBITAL RING  (v1.6)
+   orbital ring radius 62 color "indigo" speed 0.007
+       node at 0.5 labeled "Task" status "completed"
+   !
+   ═════════════════════════════════════════════ */
+ASTNode *parse_orbital_ring(Parser *p) {
+    Token t = advance(p);   /* consume 'orbital' */
+    match(p, TOKEN_RING_KW);
+    ASTNode *node = ast_make_node(NODE_ORBITAL_RING, t.line, t.col);
+    nodelist_init(&node->as.orbital_ring.nodes);
+    node->as.orbital_ring.radius = 100.0;
+    node->as.orbital_ring.speed  = 0.003;
+    node->as.orbital_ring.tilt_x = 0.0;
+    node->as.orbital_ring.tilt_z = 0.0;
+    strncpy(node->as.orbital_ring.color, "indigo", MAX_TOKEN_LEN-1);
+
+    /* radius N */
+    if (check(p, TOKEN_RADIUS_KW)) {
+        advance(p);
+        if (check(p, TOKEN_NUMBER)) {
+            node->as.orbital_ring.radius = atof(current(p).value);
+            advance(p);
+        }
+    }
+    /* color "name" */
+    if (check(p, TOKEN_WITH_COLOR)||check(p, TOKEN_STYLED)) {
+        advance(p);
+        if (check(p, TOKEN_STRING)) {
+            strncpy(node->as.orbital_ring.color,
+                current(p).value, MAX_TOKEN_LEN-1);
+            advance(p);
+        }
+    }
+    /* speed N */
+    if (check(p, TOKEN_SPEED_KW)) {
+        advance(p);
+        if (check(p, TOKEN_NUMBER)) {
+            node->as.orbital_ring.speed = atof(current(p).value);
+            advance(p);
+        }
+    }
+    /* tilt x N z N (optional) */
+    if (check(p, TOKEN_X_AXIS)) {
+        advance(p);
+        if (check(p, TOKEN_NUMBER)) {
+            node->as.orbital_ring.tilt_x = atof(current(p).value);
+            advance(p);
+        }
+    }
+    if (check(p, TOKEN_Z_AXIS)||check(p, TOKEN_Y_AXIS)) {
+        advance(p);
+        if (check(p, TOKEN_NUMBER)) {
+            node->as.orbital_ring.tilt_z = atof(current(p).value);
+            advance(p);
+        }
+    }
+
+    /* nodes until ! */
+    while (!check(p, TOKEN_TERMINATOR) && !check(p, TOKEN_EOF)) {
+        if (check(p, TOKEN_NEWLINE)) { advance(p); continue; }
+        if (check(p, TOKEN_NODE_3D)) {
+            ASTNode *nd = parse_node3d(p);
+            if (nd) nodelist_push(&node->as.orbital_ring.nodes, nd);
+        } else {
+            advance(p);
+        }
+    }
+    match(p, TOKEN_TERMINATOR);
+    node->end_line = current(p).line;
+    return node;
+}
+
+
+/* ═════════════════════════════════════════════
+   CANVAS3D  (v1.6)
+   canvas3d "name" background "deep space"
+       orbital ring ... !
+       core star ...
+   !
+   ═════════════════════════════════════════════ */
+ASTNode *parse_canvas3d(Parser *p) {
+    Token t = advance(p);   /* consume 'canvas3d' */
+    ASTNode *node = ast_make_node(NODE_CANVAS3D, t.line, t.col);
+    nodelist_init(&node->as.canvas3d.children);
+    node->as.canvas3d.background = BG3D_DEEP_SPACE;
+    node->as.canvas3d.offline    = 0;
+    node->as.canvas3d.name[0]    = '\0';
+    node->as.canvas3d.bg_color[0]= '\0';
+
+    /* optional name string */
+    if (check(p, TOKEN_STRING)) {
+        strncpy(node->as.canvas3d.name,
+            current(p).value, MAX_TOKEN_LEN-1);
+        advance(p);
+    }
+
+    /* background "preset" */
+    if (check(p, TOKEN_BACKGROUND_KW)) {
+        advance(p);
+        if (check(p, TOKEN_STRING)) {
+            const char *bg = current(p).value;
+            if      (strstr(bg,"space")) node->as.canvas3d.background = BG3D_DEEP_SPACE;
+            else if (strstr(bg,"void"))  node->as.canvas3d.background = BG3D_VOID;
+            else if (strstr(bg,"nebula"))node->as.canvas3d.background = BG3D_NEBULA;
+            else {
+                node->as.canvas3d.background = BG3D_CUSTOM;
+                strncpy(node->as.canvas3d.bg_color, bg, MAX_TOKEN_LEN-1);
+            }
+            advance(p);
+        }
+    }
+
+    /* offline keyword */
+    if (check(p, TOKEN_OFFLINE)) {
+        node->as.canvas3d.offline = 1;
+        advance(p);
+    }
+
+    /* children until ! */
+    while (!check(p, TOKEN_TERMINATOR) && !check(p, TOKEN_EOF)) {
+        if (check(p, TOKEN_NEWLINE)) { advance(p); continue; }
+        ASTNode *child = parse_statement(p);
+        if (child) nodelist_push(&node->as.canvas3d.children, child);
+    }
+    match(p, TOKEN_TERMINATOR);
+    node->end_line = current(p).line;
+    return node;
+}
+
+
+/* ═════════════════════════════════════════════
+   PANEL3D  (v1.6)
+   panel "right"
+       heading "Title"
+       make stat "Active" from 12
+   !
+   ═════════════════════════════════════════════ */
+ASTNode *parse_panel3d(Parser *p) {
+    Token t = advance(p);   /* consume 'panel' */
+    ASTNode *node = ast_make_node(NODE_PANEL3D, t.line, t.col);
+    nodelist_init(&node->as.panel3d.children);
+    node->as.panel3d.position = PANEL_RIGHT;
+
+    if (check(p, TOKEN_STRING)) {
+        const char *pos = current(p).value;
+        if      (strcmp(pos,"top")==0)    node->as.panel3d.position = PANEL_TOP;
+        else if (strcmp(pos,"left")==0)   node->as.panel3d.position = PANEL_LEFT;
+        else if (strcmp(pos,"bottom")==0) node->as.panel3d.position = PANEL_BOTTOM;
+        else                              node->as.panel3d.position = PANEL_RIGHT;
+        advance(p);
+    }
+
+    while (!check(p, TOKEN_TERMINATOR) && !check(p, TOKEN_EOF)) {
+        if (check(p, TOKEN_NEWLINE)) { advance(p); continue; }
+        ASTNode *child = parse_statement(p);
+        if (child) nodelist_push(&node->as.panel3d.children, child);
+    }
+    match(p, TOKEN_TERMINATOR);
+    node->end_line = current(p).line;
+    return node;
+}
+
+
+/* ═════════════════════════════════════════════
+   DRAWER3D  (v1.6)
+   drawer "right" titled "All Tasks"
+       make table from tasks ...
+   !
+   ═════════════════════════════════════════════ */
+ASTNode *parse_drawer3d(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_DRAWER3D, t.line, t.col);
+    nodelist_init(&node->as.drawer3d.children);
+    node->as.drawer3d.position = PANEL_RIGHT;
+    node->as.drawer3d.title[0] = '\0';
+
+    if (check(p, TOKEN_STRING)) {
+        const char *pos = current(p).value;
+        if (strcmp(pos,"left")==0) node->as.drawer3d.position = PANEL_LEFT;
+        advance(p);
+    }
+    if (check(p, TOKEN_TITLED)) {
+        advance(p);
+        if (check(p, TOKEN_STRING)) {
+            strncpy(node->as.drawer3d.title,
+                current(p).value, MAX_TOKEN_LEN-1);
+            advance(p);
+        }
+    }
+
+    while (!check(p, TOKEN_TERMINATOR) && !check(p, TOKEN_EOF)) {
+        if (check(p, TOKEN_NEWLINE)) { advance(p); continue; }
+        ASTNode *child = parse_statement(p);
+        if (child) nodelist_push(&node->as.drawer3d.children, child);
+    }
+    match(p, TOKEN_TERMINATOR);
+    node->end_line = current(p).line;
     return node;
 }
 

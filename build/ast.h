@@ -82,6 +82,33 @@ typedef enum {
 } EPFTheme;
 
 /* ─────────────────────────────────────────────
+   3D Background presets  (v1.6)
+   ───────────────────────────────────────────── */
+typedef enum {
+    BG3D_DEEP_SPACE,    /* dark blue/purple star field  */
+    BG3D_VOID,          /* pure black minimal           */
+    BG3D_NEBULA,        /* colorful particle clouds     */
+    BG3D_CUSTOM         /* custom hex color             */
+} Background3D;
+
+/* ─────────────────────────────────────────────
+   Node status (mirrors interpreter status)
+   ───────────────────────────────────────────── */
+typedef enum {
+    NODE3D_COMPLETED,
+    NODE3D_INPROGRESS,
+    NODE3D_OVERDUE,
+    NODE3D_PENDING
+} Node3DStatus;
+
+/* ─────────────────────────────────────────────
+   Panel / Drawer position
+   ───────────────────────────────────────────── */
+typedef enum {
+    PANEL_TOP, PANEL_RIGHT, PANEL_BOTTOM, PANEL_LEFT
+} PanelPosition;
+
+/* ─────────────────────────────────────────────
    Graph node — adjacency list entry  (v1.3)
    ───────────────────────────────────────────── */
 #define EPL_GRAPH_MAX_NODES 256
@@ -184,7 +211,16 @@ typedef enum {
     NODE_IMPORT,           /* import data from "file.epdb"                  */
 
     /* v1.5 — List index access */
-    NODE_INDEX_ACCESS      /* item N of LIST                                */
+    NODE_INDEX_ACCESS,     /* item N of LIST                                */
+
+    /* v1.6 — 3D Canvas */
+    NODE_CANVAS3D,         /* canvas3d "name" background "x" ... ! */
+    NODE_ORBITAL_RING,     /* orbital ring radius N color "x" speed N ... ! */
+    NODE_NODE3D,           /* node at N labeled "x" status "x" */
+    NODE_CORE_STAR,        /* core star color "x" labeled "x" */
+    NODE_FROM_GRAPH,       /* from graph <varname> */
+    NODE_PANEL3D,          /* panel "position" ... ! */
+    NODE_DRAWER3D,         /* drawer "position" titled "x" ... ! */
 
 } NodeType;
 
@@ -506,6 +542,58 @@ struct ASTNode {
             ASTNode *list;    /* the collection expression */
             ASTNode *index;   /* the index expression      */
         } index_access;
+
+        /* NODE_CANVAS3D  (v1.6) */
+        struct {
+            char         name[MAX_TOKEN_LEN];
+            Background3D background;
+            char         bg_color[MAX_TOKEN_LEN];
+            int          offline;        /* 1 = embed JS inline */
+            NodeList     children;       /* orbital rings, core, from_graph */
+        } canvas3d;
+
+        /* NODE_ORBITAL_RING  (v1.6) */
+        struct {
+            double       radius;
+            char         color[MAX_TOKEN_LEN];
+            double       speed;
+            double       tilt_x;
+            double       tilt_z;
+            NodeList     nodes;          /* NODE_NODE3D children */
+        } orbital_ring;
+
+        /* NODE_NODE3D  (v1.6) */
+        struct {
+            double       angle;          /* position on ring 0..2pi */
+            char         label[MAX_TOKEN_LEN];
+            Node3DStatus status;
+            char         desc[MAX_TOKEN_LEN];
+        } node3d;
+
+        /* NODE_CORE_STAR  (v1.6) */
+        struct {
+            char color[MAX_TOKEN_LEN];
+            char label[MAX_TOKEN_LEN];
+            char desc[MAX_TOKEN_LEN];
+        } core_star;
+
+        /* NODE_FROM_GRAPH  (v1.6) */
+        struct {
+            char graph_var[MAX_TOKEN_LEN];
+        } from_graph;
+
+        /* NODE_PANEL3D  (v1.6) */
+        struct {
+            PanelPosition position;
+            NodeList      children;      /* heading, stat, etc. */
+        } panel3d;
+
+        /* NODE_DRAWER3D  (v1.6) */
+        struct {
+            PanelPosition position;
+            char          title[MAX_TOKEN_LEN];
+            NodeList      children;
+        } drawer3d;
 
     } as;
 };

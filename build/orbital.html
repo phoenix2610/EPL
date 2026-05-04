@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+    content="width=device-width,initial-scale=1.0">
+  <title>Monarch Rings</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600&family=Share+Tech+Mono&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="orbital.style.css">
+</head>
+<body>
+<div id="epl-root">
+  <canvas id="epl-canvas"></canvas>
+
+  <div id='epl-tt'></div>
+
+  <!-- Detail panel -->
+  <div id='epl-panel'>
+    <div class='ep-head'>
+      <div class='ep-title' id='ep-title'>—</div>
+      <div class='ep-close' id='ep-close'>×</div>
+    </div>
+    <div class='ep-body'>
+      <div id='ep-badge' class='ep-badge'></div>
+      <div class='ep-div'></div>
+      <div class='ep-row'>
+        <span class='ep-key'>Ring</span>
+        <span class='ep-val' id='ep-ring'>—</span>
+      </div>
+      <div class='ep-row'>
+        <span class='ep-key'>Status</span>
+        <span class='ep-val' id='ep-status'>—</span>
+      </div>
+      <div class='ep-div'></div>
+      <div class='ep-desc' id='ep-desc'>—</div>
+    </div>
+  </div>
+
+  <div class='epl-overlay-panel ep-panel-right'>
+    <h1 class='ep-panel-h1'>Monarch Rings</h1>
+    <h2 class='ep-panel-h2'>Orbital Timeline</h2>
+    <div class='ep-stat'>
+      <div class='ep-stat-lbl'>Total Tasks</div>
+      <div class='ep-stat-val'>19</div>
+    </div>
+    <div class='ep-stat'>
+      <div class='ep-stat-lbl'>Completed</div>
+      <div class='ep-stat-val'>10</div>
+    </div>
+    <div class='ep-stat'>
+      <div class='ep-stat-lbl'>Overdue</div>
+      <div class='ep-stat-val'>2</div>
+    </div>
+  </div>
+
+  <div id="epl-legend"></div>
+</div>
+
+<!-- Three.js r128 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="orbital.data.js"></script>
+<script src="orbital.scene.js"></script>
+</body>
+</html>

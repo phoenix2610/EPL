@@ -173,10 +173,31 @@ typedef enum {
     TOKEN_MAKE_STAT,       /* stat        */
     TOKEN_X_AXIS,          /* x           */
     TOKEN_Y_AXIS,          /* y           */
+    TOKEN_Z_AXIS,          /* z           */
     TOKEN_AXIS,            /* axis        */
     TOKEN_WITH_COLOR,      /* color       */
     TOKEN_HEADERS,         /* headers     */
     TOKEN_IMPORT,          /* import      */
+
+    /* v1.6 — 3D canvas keywords */
+    TOKEN_CANVAS3D,        /* canvas3d   */
+    TOKEN_ORBITAL,         /* orbital    */
+    TOKEN_RING_KW,         /* ring       */
+    TOKEN_RADIUS_KW,       /* radius     */
+    TOKEN_SPEED_KW,        /* speed      */
+    TOKEN_NODE_3D,         /* node       */
+    TOKEN_AT_KW,           /* at         */
+    TOKEN_LABELED,         /* labeled    */
+    TOKEN_STATUS_KW,       /* status     */
+    TOKEN_CORE_KW,         /* core       */
+    TOKEN_STAR_KW,         /* star       */
+    TOKEN_BACKGROUND_KW,   /* background */
+    TOKEN_PANEL_KW,        /* panel      */
+    TOKEN_DRAWER_KW,       /* drawer     */
+    TOKEN_OFFLINE,         /* offline    */
+    TOKEN_FROM_GRAPH,      /* (from graph — multi-word, handled in parser) */
+    TOKEN_VOID_BG,         /* void       */
+    TOKEN_SPACE_BG,        /* space      */
 
     /* ── SYSTEM ── */
     TOKEN_EXECUTE,          /* execute                     */

@@ -140,7 +140,7 @@ static KeywordEntry keyword_table[] = {
     { "edge",       TOKEN_EDGE_KW     },
     { "graph",      TOKEN_GRAPH       },
     { "link",       TOKEN_LINK        },
-    { "node",       TOKEN_NODE_KW     },
+    { "node",       TOKEN_NODE_3D     },   /* v1.6: orbital ring nodes take priority */
     { "route",      TOKEN_ROUTE       },
     /* v1.4 Additions */
     { "axis",       TOKEN_AXIS        },
@@ -169,6 +169,7 @@ static KeywordEntry keyword_table[] = {
     { "titled",     TOKEN_TITLED      },
     { "x",          TOKEN_X_AXIS      },
     { "y",          TOKEN_Y_AXIS      },
+    { "z",          TOKEN_Z_AXIS      },
     /* v1.2 Additions */
     { "a",          TOKEN_A           },
     { "boolean",    TOKEN_BOOLEAN_KW  },
@@ -188,6 +189,21 @@ static KeywordEntry keyword_table[] = {
     { "string",     TOKEN_STRING_KW   },
     { "trimmed",    TOKEN_TRIMMED     },
     { "uppercase",  TOKEN_UPPERCASE   },
+    /* v1.6 Additions */
+    { "at",         TOKEN_AT_KW       },
+    { "background", TOKEN_BACKGROUND_KW },
+    { "canvas3d",   TOKEN_CANVAS3D    },
+    { "core",       TOKEN_CORE_KW     },
+    { "drawer",     TOKEN_DRAWER_KW   },
+    { "labeled",    TOKEN_LABELED     },
+    { "offline",    TOKEN_OFFLINE     },
+    { "orbital",    TOKEN_ORBITAL     },
+    { "panel",      TOKEN_PANEL_KW    },
+    { "radius",     TOKEN_RADIUS_KW   },
+    { "ring",       TOKEN_RING_KW     },
+    { "speed",      TOKEN_SPEED_KW    },
+    { "star",       TOKEN_STAR_KW     },
+    { "status",     TOKEN_STATUS_KW   },
     { NULL,             TOKEN_UNKNOWN       }   /* sentinel */
 };
 

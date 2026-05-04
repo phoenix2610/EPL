@@ -1,0 +1,142 @@
+describe dashboard as "Nexus Omega — Galactic Intelligence Grid | EPL v1.6"
+
+### NEXUS OMEGA COMMAND INTERFACE
+  Classification: ULTRA-BLACK
+  Six orbital theatres. One command nexus. Zero tolerance for failure.
+###
+
+# ── Operative Registry ────────────────────────────────────────────
+set operatives  as 31
+set active      as 19
+set deepcover   as 8
+set extracted   as 4
+set kia         as 2
+set pending     as 3
+
+set risk        as kia plus extracted
+set netactive   as operatives minus risk minus pending
+set fieldrate   as active divided by operatives
+
+# ── Theatre Completion Snapshot ───────────────────────────────────
+set alpha   as 4
+set beta    as 3
+set gamma   as 3
+set delta   as 2
+set epsilon as 1
+set zeta    as 2
+
+set done    as alpha plus beta plus gamma plus delta plus epsilon plus zeta
+set nodes   as 27
+set arc     as done divided by nodes
+
+# ── Threat Intelligence ───────────────────────────────────────────
+set hostiles    as 14
+set neutralised as 9
+set evasion     as neutralised divided by hostiles
+
+to evaluate threat
+    if risk is greater than 5 then
+        return "CRITICAL"
+    !
+    if evasion is less than 0.6 then
+        return "ELEVATED"
+    !
+    return "NOMINAL"
+!
+
+set tier by evaluate threat
+
+to assess health
+    if arc is greater than 0.7 then
+        return "OPTIMAL"
+    !
+    if arc is greater than 0.4 then
+        return "DEGRADED"
+    !
+    return "CRITICAL"
+!
+
+set gridhealth by assess health
+
+# ── Performance Metrics ───────────────────────────────────────────
+set scores  as [94, 87, 73, 65, 51, 88]
+set avg     as average of scores
+set peak    as maximum of scores
+set lowest  as minimum of scores
+
+# ─────────────────────────────────────────────────────────────────
+#   3D CANVAS
+# ─────────────────────────────────────────────────────────────────
+
+make page saved as "nexus_omega.html" styled as "dark"
+
+    canvas3d "NEXUS OMEGA" background "deep space"
+
+        core star color "gold" labeled "CMD NEXUS OMEGA"
+
+        # Ring 1 — CIPHER LAYER (innermost)
+        orbital ring radius 52 color "indigo" speed 0.012
+            node at 0      labeled "Zero-Day Exploit Alpha"   status "completed"
+            node at 1.26   labeled "Signal Ghost Protocol"    status "completed"
+            node at 2.51   labeled "Neural Firewall Bypass"   status "completed"
+            node at 3.77   labeled "Quantum Cipher Crack"     status "completed"
+            node at 5.03   labeled "Deep Cover Insertion"     status "inprogress"
+        !
+
+        # Ring 2 — RECON THEATRE
+        orbital ring radius 94 color "blue" speed 0.0078
+            node at 0.4    labeled "Void Sweep Network"       status "completed"
+            node at 1.65   labeled "Ion Storm Intercept"      status "completed"
+            node at 2.9    labeled "Dark Corridor Recon"      status "completed"
+            node at 4.15   labeled "Nebula Gate Breach"       status "inprogress"
+            node at 5.4    labeled "Phase Shift Ambush"       status "overdue"
+        !
+
+        # Ring 3 — BIOTECH THEATRE
+        orbital ring radius 138 color "green" speed 0.005
+            node at 0.6    labeled "Bioscan Array Omega"      status "completed"
+            node at 2.0    labeled "Nanobot Swarm Control"    status "completed"
+            node at 3.35   labeled "Cryo Stasis Override"     status "completed"
+            node at 4.72   labeled "Toxin Web Neutralise"     status "inprogress"
+        !
+
+        # Ring 4 — DEEP SPACE OPS
+        orbital ring radius 182 color "amber" speed 0.003
+            node at 0.5    labeled "Warp Drive Calibrate"     status "completed"
+            node at 1.88   labeled "Singularity Monitor"      status "inprogress"
+            node at 3.27   labeled "Dark Energy Harvest"      status "overdue"
+            node at 4.65   labeled "Gravity Well Survey"      status "pending"
+        !
+
+        # Ring 5 — CONSCIOUSNESS THEATRE
+        orbital ring radius 226 color "pink" speed 0.0018
+            node at 0.8    labeled "Memory Splice Archive"    status "inprogress"
+            node at 2.36   labeled "Emotion Engine v9"        status "pending"
+            node at 3.92   labeled "Dream Protocol Sync"      status "overdue"
+            node at 5.48   labeled "Consciousness Fork"       status "pending"
+        !
+
+        # Ring 6 — EXISTENTIAL THEATRE (outermost)
+        orbital ring radius 272 color "red" speed 0.0009
+            node at 1.0    labeled "Multiverse Anchor Alpha"  status "completed"
+            node at 2.57   labeled "Reality Tear Seal"        status "completed"
+            node at 4.14   labeled "Causality Loop Break"     status "inprogress"
+            node at 5.71   labeled "Entropy Suppressor Zeta"  status "pending"
+        !
+
+    !
+
+    panel "right"
+        heading "NEXUS OMEGA"
+        subheading "Galactic Intelligence Grid"
+        make stat "Operatives"   from operatives
+        make stat "Net Active"   from netactive
+        make stat "KIA"          from kia
+        make stat "Arc Coverage" from arc rounded to 2
+        make stat "Threat Tier"  from tier
+        make stat "Grid Health"  from gridhealth
+        make stat "Grid Avg"     from avg
+        make stat "Peak Score"   from peak
+    !
+
+!

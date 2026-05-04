@@ -66,6 +66,14 @@ ASTNode *parse_make_chart(Parser *p);
 ASTNode *parse_make_table_out(Parser *p);
 ASTNode *parse_make_report(Parser *p);
 ASTNode *parse_make_page(Parser *p);
+
+/* 3D Canvas Parsers (v1.6) */
+ASTNode *parse_node3d(Parser *p);
+ASTNode *parse_core_star(Parser *p);
+ASTNode *parse_orbital_ring(Parser *p);
+ASTNode *parse_canvas3d(Parser *p);
+ASTNode *parse_panel3d(Parser *p);
+ASTNode *parse_drawer3d(Parser *p);
 /* ═════════════════════════════════════════════
    EXPRESSION PARSERS
    ═════════════════════════════════════════════ */
