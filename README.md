@@ -3,7 +3,7 @@
   <h1>EPL — English Programming Language</h1>
   <p><em>"Your thoughts are the syntax."</em></p>
 
-  [![Version](https://img.shields.io/badge/version-1.5-blue.svg)](#)
+  [![Version](https://img.shields.io/badge/version-1.6-blue.svg)](#)
   [![Build](https://img.shields.io/badge/build-passing-brightgreen.svg)](#)
   [![Language](https://img.shields.io/badge/language-C11-orange.svg)](#)
   
@@ -36,7 +36,7 @@ Human thought → EPL → C Interpreter → Execution
 
 ### Why EPL?
 EPL boasts superior **semantic token density**. Every token is signal, making EPL **5-6x more efficient** for LLMs to read than standard Python. 
-With our v1.5 feature **`.EPD` (Semantic Indexes)**, LLMs can instantly understand your codebase without reading the raw logic.
+With features like **`.EPD` (Semantic Indexes)** and our new **v1.6 3D Frontend Engine**, LLMs can instantly understand your codebase and generate rich, interactive visualizations directly from English.
 
 <details>
 <summary><strong>🔍 Click to see how Semantic Indexing (.EPD) works</strong></summary>
@@ -57,7 +57,7 @@ An LLM navigating a 10,000-line codebase reads the 800-token `.EPD` file, finds 
 ### Build from Source
 EPL is incredibly fast and has zero external dependencies outside of standard C.
 ```bash
-gcc -Wall -std=c11 -o epl main.c lexer.c token.c ast.c parser.c interpreter.c repl.c codegen.c binding.c describe.c -lm
+gcc -Wall -std=c11 -o epl main.c lexer.c token.c ast.c parser.c interpreter.c repl.c codegen.c binding.c describe.c scene_gen.c -lm
 ```
 
 ### Run a File
@@ -164,7 +164,7 @@ EPL handles the entire stack in one human-readable syntax:
 | Extension | Purpose | Output |
 |-----------|---------|---------|
 | **`.EP`** | Logic, backend computation | Terminal Execution |
-| **`.EPF`** | Frontend Dashboards (v1.4) | Live `.html` files |
+| **`.EPF`** | Frontend Dashboards & 3D Scenes (v1.6) | Live `.html` & 3D WebGL files |
 | **`.EPD`** | Semantic Index (v1.5) | Read-only LLM context |
 
 <details>
@@ -180,6 +180,19 @@ make page saved as "dashboard.html" styled as "dark"
     section "Charts"
         make line chart for x axis as months and y axis as revenue titled "Revenue"
     !
+!
+```
+</details>
+
+<details>
+<summary><strong>🌍 Generate 3D Scenes (v1.6)</strong></summary>
+
+With v1.6, `.EPF` files now support generating complete interactive 3D scenes using simple English:
+```epf
+make scene saved as "orbital.html"
+    create canvas with width 100% and height 100vh
+    draw ring for radius 150
+    draw node at angle 45 distance 150 named "Task A"
 !
 ```
 </details>
