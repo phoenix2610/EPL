@@ -1,78 +1,137 @@
-describe dashboard as "EPL | The Future of Code"
+describe dashboard as "EPL | Formal Platform"
 
-set speedup       as 400
-set readability   as 98.5
-set zero_syntax   as 100
-
+# ═════════════════════════════════════════════════════════════════
+#   PAGE 1 — epl_landing.html
+# ═════════════════════════════════════════════════════════════════
 make page saved as "epl_landing.html" styled as "dark"
 
-    # --- CSS INJECTIONS ---
-    paragraph "<style>.epl-paragraph:has(style){display:none!important;}</style>"
+    paragraph "<style>.epl-paragraph:has(style),.epl-paragraph:has(script){display:none!important;}</style>"
     paragraph "<style>body{background:#0a0a0a!important;color:#ededed!important;font-family:'Inter',sans-serif;}</style>"
     paragraph "<style>.epl-shell-sidebar{display:none!important;}</style>"
     paragraph "<style>.epl-shell-main{margin-left:0!important;width:100%!important;background:#0a0a0a!important;}</style>"
     paragraph "<style>.epl-top-nav{background:rgba(10,10,10,0.8)!important;border-bottom:1px solid #222!important;backdrop-filter:blur(10px);}</style>"
     paragraph "<style>.epl-page{max-width:1100px!important;margin:0 auto;padding:2rem 2rem 6rem;}</style>"
-    
-    paragraph "<style>.hero{text-align:center;padding:6rem 0 5rem;}</style>"
-    paragraph "<style>.hero img{width:140px;margin-bottom:2rem;animation:float 6s ease-in-out infinite;}</style>"
-    paragraph "<style>.hero h1{font-size:5rem;letter-spacing:-0.04em;background:linear-gradient(180deg,#fff,#666);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:1.5rem;}</style>"
-    paragraph "<style>.hero p{font-size:1.4rem;color:#888;max-width:650px;margin:0 auto 3rem;line-height:1.6;}</style>"
-    paragraph "<style>.cta-button{display:inline-block;background:#fff;color:#000;padding:1rem 2.5rem;border-radius:30px;font-size:1.1rem;font-weight:600;transition:all 0.2s;cursor:pointer;}</style>"
-    paragraph "<style>.cta-button:hover{transform:translateY(-2px);box-shadow:0 4px 20px rgba(255,255,255,0.3);}</style>"
+
+    paragraph "<style>.nav-brand{font-weight:700;font-size:1.2rem;letter-spacing:0.1em;color:#fff;}</style>"
+    paragraph "<style>.nav-status{color:#666;font-size:0.9rem;}</style>"
+    paragraph "<style>.pulse{background:#fff!important;box-shadow:0 0 10px #fff!important;}</style>"
+    paragraph "<div style='position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;gap:3rem;'><a href='epl_landing.html' style='color:#fff;text-decoration:none;'>Home</a><a href='epl_architecture.html' style='color:#fff;text-decoration:none;'>Architecture</a><a href='epl_signup.html' style='color:#fff;text-decoration:none;'>Early Access</a></div>"
+
+    paragraph "<style>.hero{text-align:center;padding:6rem 0 5rem;perspective:1000px;}</style>"
+    paragraph "<style>.hero img{width:160px;margin-bottom:2rem;transform-style:preserve-3d;transition:transform 0.1s;}</style>"
+    paragraph "<style>.hero h1{font-size:5.5rem;letter-spacing:-0.04em;background:linear-gradient(180deg,#fff,#555);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:1.5rem;}</style>"
+    paragraph "<style>.hero p{font-size:1.4rem;color:#888;max-width:700px;margin:0 auto 3rem;line-height:1.6;}</style>"
+    paragraph "<style>.cta-button{display:inline-block;background:#fff;color:#000;padding:1rem 2.5rem;border-radius:30px;font-size:1.1rem;font-weight:600;transition:all 0.2s;cursor:pointer;text-decoration:none;}</style>"
+    paragraph "<style>.cta-button:hover{transform:translateY(-3px);box-shadow:0 4px 20px rgba(255,255,255,0.4);}</style>"
     paragraph "<style>.cta-button:active{transform:translateY(0) scale(0.98);}</style>"
-    paragraph "<style>@keyframes float{0%{transform:translateY(0px);}50%{transform:translateY(-10px);}100%{transform:translateY(0px);}}</style>"
-    
-    paragraph "<style>.epl-section{background:#0f0f0f;border:1px solid #222;border-radius:12px;padding:3rem;transition:all 0.3s ease;margin-bottom:3rem;}</style>"
-    paragraph "<style>.epl-section:hover{border-color:#444;box-shadow:0 10px 40px rgba(0,0,0,0.5);}</style>"
-    paragraph "<style>h2{font-size:2rem;letter-spacing:-0.02em;color:#fff;margin-bottom:2rem;border-bottom:none;text-transform:none;}</style>"
-    
-    paragraph "<style>.epl-stat{background:#050505;border:1px solid #222;border-radius:8px;padding:2.5rem;transition:all 0.3s ease;text-align:center;cursor:pointer;}</style>"
-    paragraph "<style>.epl-stat:hover{background:#111;border-color:#666;transform:translateY(-4px);box-shadow:0 8px 30px rgba(255,255,255,0.05);}</style>"
-    paragraph "<style>.epl-stat-value{font-size:3.5rem;font-weight:700;color:#fff;letter-spacing:-0.03em;}</style>"
-    paragraph "<style>.epl-stat-label{color:#888;font-size:0.9rem;text-transform:uppercase;letter-spacing:0.1em;margin-top:0.8rem;}</style>"
-    paragraph "<style>.epl-row{grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:2.5rem;margin-bottom:2rem;}</style>"
-    
-    paragraph "<style>.card{background:#050505;padding:2.5rem;border-radius:12px;border:1px solid #222;text-align:left;cursor:pointer;transition:all 0.3s;}</style>"
-    paragraph "<style>.card:hover{background:#111;border-color:#555;transform:translateY(-5px);}</style>"
-    paragraph "<style>.card:active{transform:translateY(0);border-color:#fff;}</style>"
+
+    paragraph "<style>.card{background:#050505;padding:2.5rem;border-radius:12px;border:1px solid #222;text-align:left;transition:all 0.3s;}</style>"
+    paragraph "<style>.card:hover{background:#111;border-color:#555;transform:translateY(-5px);box-shadow:0 10px 30px rgba(0,0,0,0.8);}</style>"
     paragraph "<style>.card h3{color:#fff;margin-top:0;font-size:1.4rem;margin-bottom:1rem;font-weight:600;}</style>"
     paragraph "<style>.card p{color:#888;font-size:1.05rem;line-height:1.6;margin:0;}</style>"
+    paragraph "<style>.epl-row{grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:2.5rem;margin-bottom:2rem;display:grid;}</style>"
     
-    paragraph "<style>.nav-brand { font-weight: 700; font-size: 1.2rem; letter-spacing: 0.1em; color: #fff; }</style>"
-    paragraph "<style>.nav-status { color: #666; font-size: 0.9rem; }</style>"
-    paragraph "<style>.pulse { background: #fff !important; box-shadow: 0 0 10px #fff !important; }</style>"
+    # SPIN ON SCROLL JS
+    paragraph "<script>window.addEventListener('scroll',()=>{let img=document.querySelector('.hero img');if(img)img.style.transform='rotateY('+(window.scrollY*0.8)+'deg)';});</script>"
 
-    # ── HERO SECTION ──
     paragraph "<span class='hero' style='display:block;'>"
     paragraph "<img src='../documentation/EPL_logo.png' />"
     paragraph "<h1>Code Like You Speak.</h1>"
-    paragraph "<p>The first fully semantic, plain-English language designed for zero-boilerplate development.</p>"
-    paragraph "<span class='cta-button' onclick='alert(\"Downloading EPL v1.6...\")'>Download v1.6</span>"
-    paragraph "</span>"
-    
-    # ── FEATURE CARDS ──
-    paragraph "<span class='epl-row' style='display:grid;'>"
-    paragraph "<span class='card' style='display:block;'><h3>Semantic Parser</h3><p>Translates English to C binaries.</p></span>"
-    paragraph "<span class='card' style='display:block;'><h3>Native Dashboards</h3><p>Compile logic directly to UI.</p></span>"
-    paragraph "<span class='card' style='display:block;'><h3>Memory Safe</h3><p>Built-in orphan sweeping engine.</p></span>"
+    paragraph "<p>The first fully semantic, plain-English programming language designed for enterprise logic, zero-boilerplate development, and high-performance C-compilation.</p>"
+    paragraph "<a href='epl_signup.html' class='cta-button'>Request Early Access</a>"
     paragraph "</span>"
 
-    # ── NATIVE EPL METRICS ──
-    section "Unprecedented Efficiency"
-        row
-            make stat "Development Speedup %" from speedup
-            make stat "Readability Score" from readability
-            make stat "Zero Syntax Errors" from zero_syntax
-        !
-    !
+    paragraph "<span class='epl-row'>"
+    paragraph "<span class='card' style='display:block;'><h3>Semantic Parser</h3><p>Reads pure English and converts it to high-performance Abstract Syntax Trees natively.</p></span>"
+    paragraph "<span class='card' style='display:block;'><h3>Native Web Engine</h3><p>Bypasses traditional frameworks. Compiles direct to HTML/JS/CSS automatically.</p></span>"
+    paragraph "<span class='card' style='display:block;'><h3>Zero Garbage</h3><p>Intelligent orphan-sweeping tracking. Never leaks files across compilations.</p></span>"
+    paragraph "</span>"
 
-    # ── CHART DATA ──
-    set langs as ["C++", "Java", "Python", "EPL v1.6"]
-    set read_idx as [24, 45, 82, 100]
+!
+
+# ═════════════════════════════════════════════════════════════════
+#   PAGE 2 — epl_architecture.html
+# ═════════════════════════════════════════════════════════════════
+make page saved as "epl_architecture.html" styled as "dark"
+
+    paragraph "<style>.epl-paragraph:has(style),.epl-paragraph:has(script){display:none!important;}</style>"
+    paragraph "<style>body{background:#0a0a0a!important;color:#ededed!important;font-family:'Inter',sans-serif;}</style>"
+    paragraph "<style>.epl-shell-sidebar{display:none!important;}</style>"
+    paragraph "<style>.epl-shell-main{margin-left:0!important;width:100%!important;background:#0a0a0a!important;}</style>"
+    paragraph "<style>.epl-top-nav{background:rgba(10,10,10,0.8)!important;border-bottom:1px solid #222!important;backdrop-filter:blur(10px);}</style>"
+    paragraph "<style>.epl-page{max-width:1100px!important;margin:0 auto;padding:2rem 2rem 6rem;}</style>"
+
+    paragraph "<style>.nav-brand{font-weight:700;font-size:1.2rem;letter-spacing:0.1em;color:#fff;}</style>"
+    paragraph "<style>.nav-status{color:#666;font-size:0.9rem;}</style>"
+    paragraph "<style>.pulse{background:#fff!important;box-shadow:0 0 10px #fff!important;}</style>"
+    paragraph "<div style='position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;gap:3rem;'><a href='epl_landing.html' style='color:#fff;text-decoration:none;'>Home</a><a href='epl_architecture.html' style='color:#fff;text-decoration:none;'>Architecture</a><a href='epl_signup.html' style='color:#fff;text-decoration:none;'>Early Access</a></div>"
+
+    paragraph "<style>.card{background:#050505;padding:2.5rem;border-radius:12px;border:1px solid #222;text-align:left;transition:all 0.3s;}</style>"
+    paragraph "<style>.card:hover{background:#111;border-color:#555;transform:translateY(-5px);}</style>"
+    paragraph "<style>.card h3{color:#fff;margin-top:0;font-size:1.4rem;margin-bottom:1rem;font-weight:600;}</style>"
+    paragraph "<style>.card p{color:#888;font-size:1.05rem;line-height:1.6;margin:0;}</style>"
+    paragraph "<style>.epl-row{grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:2.5rem;margin-bottom:2rem;display:grid;}</style>"
+
+    paragraph "<div style='padding:5rem 0 3rem;text-align:center;'><h1 style='font-size:4rem;margin-bottom:1rem;color:#fff;'>Architecture Deep Dive</h1><p style='color:#888;font-size:1.3rem;'>Explore the compilation pipeline and performance metrics.</p></div>"
+
+    paragraph "<span class='epl-row'>"
+    paragraph "<span class='card'><h3>The Lexer Engine</h3><p>A multi-word greedy matcher that supports natural spaces inside keywords. Extremely fast tokenization.</p></span>"
+    paragraph "<span class='card'><h3>AST Generation</h3><p>Pure C recursive descent parser builds complex memory-safe Abstract Syntax Trees without dependencies.</p></span>"
+    paragraph "</span>"
+
+    paragraph "<span class='epl-row'>"
+    paragraph "<span class='card'><h3>Manifest Tracker</h3><p>Every EPF project tracks its generated files via an .epbind manifest, preventing namespace collision.</p></span>"
+    paragraph "<span class='card'><h3>Native 3D Orbital Engine</h3><p>EPL can compile canvas3d syntax into three.js visualizations, bridging logic and WebGL instantly.</p></span>"
+    paragraph "</span>"
+
+    paragraph "<h2 style='font-size:2rem;color:#fff;margin:3rem 0 1rem;'>Compilation Latency (ms)</h2>"
+    paragraph "<div style='background:#111;padding:2rem;border-radius:12px;border:1px solid #222;'><canvas id='cC' style='height:400px;width:100%;'></canvas></div>"
+    paragraph "<script>setTimeout(()=>{new Chart(document.getElementById('cC'),{type:'line',data:{labels:['Lexer','Parser','AST','Codegen','Linker'],datasets:[{data:[1.2,3.5,0.8,5.1,1.5],borderColor:'#22d3ee',backgroundColor:'rgba(34,211,238,0.15)',fill:true,tension:0.4}]}})},500)</script>"
+
+!
+
+# ═════════════════════════════════════════════════════════════════
+#   PAGE 3 — epl_signup.html
+# ═════════════════════════════════════════════════════════════════
+make page saved as "epl_signup.html" styled as "dark"
+
+    paragraph "<style>.epl-paragraph:has(style),.epl-paragraph:has(script){display:none!important;}</style>"
+    paragraph "<style>body{background:#0a0a0a!important;color:#ededed!important;font-family:'Inter',sans-serif;}</style>"
+    paragraph "<style>.epl-shell-sidebar{display:none!important;}</style>"
+    paragraph "<style>.epl-shell-main{margin-left:0!important;width:100%!important;background:#0a0a0a!important;}</style>"
+    paragraph "<style>.epl-top-nav{background:rgba(10,10,10,0.8)!important;border-bottom:1px solid #222!important;backdrop-filter:blur(10px);}</style>"
+    paragraph "<style>.epl-page{max-width:1100px!important;margin:0 auto;padding:2rem 2rem 6rem;}</style>"
+
+    paragraph "<style>.nav-brand{font-weight:700;font-size:1.2rem;letter-spacing:0.1em;color:#fff;}</style>"
+    paragraph "<style>.nav-status{color:#666;font-size:0.9rem;}</style>"
+    paragraph "<style>.pulse{background:#fff!important;box-shadow:0 0 10px #fff!important;}</style>"
+    paragraph "<div style='position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;gap:3rem;'><a href='epl_landing.html' style='color:#fff;text-decoration:none;'>Home</a><a href='epl_architecture.html' style='color:#fff;text-decoration:none;'>Architecture</a><a href='epl_signup.html' style='color:#fff;text-decoration:none;'>Early Access</a></div>"
+
+    paragraph "<style>.cta-button{display:inline-block;background:#fff;color:#000;padding:1rem 2.5rem;border-radius:30px;font-size:1.1rem;font-weight:600;transition:all 0.2s;cursor:pointer;text-decoration:none;}</style>"
+    paragraph "<style>.cta-button:hover{transform:translateY(-3px);box-shadow:0 4px 20px rgba(255,255,255,0.4);}</style>"
+    paragraph "<style>.cta-button:active{transform:translateY(0) scale(0.98);}</style>"
+
+    paragraph "<style>input{box-sizing:border-box;width:100%;padding:1rem;margin-bottom:1.5rem;border-radius:6px;background:#050505;border:1px solid #333;color:#fff;outline:none;transition:border-color 0.2s;}</style>"
+    paragraph "<style>input:focus{border-color:#22d3ee;}</style>"
+
+    paragraph "<div style='padding:5rem 0 3rem;text-align:center;'><h1 style='font-size:4rem;margin-bottom:1rem;color:#fff;'>Join the Waitlist</h1><p style='color:#888;font-size:1.3rem;'>Get early access to the EPL v1.6 Core Compiler.</p></div>"
+
+    paragraph "<div style='max-width:500px;margin:0 auto;background:#111;padding:3rem;border-radius:12px;border:1px solid #222;'>"
     
-    section "Comparative Benchmarks"
-        make bar chart for x axis as langs and y axis as read_idx titled "Language Readability Index"
-    !
+    paragraph "<label style='color:#888;font-size:0.9rem;margin-bottom:0.5rem;display:block;'>Full Name</label>"
+    paragraph "<input type='text' id='name' placeholder='John Doe'>"
+    
+    paragraph "<label style='color:#888;font-size:0.9rem;margin-bottom:0.5rem;display:block;'>Email Address</label>"
+    paragraph "<input type='email' id='mail' placeholder='john@company.com'>"
+    
+    paragraph "<label style='color:#888;font-size:0.9rem;margin-bottom:0.5rem;display:block;'>Mobile Number</label>"
+    paragraph "<input type='tel' id='tel' placeholder='+1 (555) 000-0000' style='margin-bottom:2.5rem;'>"
+    
+    paragraph "<div id='btn' class='cta-button' style='width:100%;text-align:center;box-sizing:border-box;'>Request Access</div>"
+    paragraph "<p id='msg' style='color:#22d3ee;text-align:center;margin-top:1.5rem;display:none;font-weight:600;'>Access Granted. Check your email inbox.</p>"
+    
+    paragraph "</div>"
+
+    paragraph "<script>document.getElementById('btn').onclick=()=>{let m=document.getElementById('mail').value;if(m.includes('@')){document.getElementById('msg').style.display='block';document.getElementById('btn').innerHTML='Sent!';}else{alert('Please enter a valid email.');}}</script>"
 
 !
