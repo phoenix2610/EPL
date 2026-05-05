@@ -7,7 +7,7 @@
    ───────────────────────────────────────────── */
 
 /* Max length of any token's raw text value */
-#define MAX_TOKEN_LEN 256
+#define MAX_TOKEN_LEN 4096
 
 /* ─────────────────────────────────────────────
    TOKEN TYPES

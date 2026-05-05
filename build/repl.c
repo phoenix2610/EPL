@@ -118,7 +118,7 @@ void repl_banner(void) {
    REPL INIT / FREE
    ═════════════════════════════════════════════ */
 void repl_init(Repl *repl) {
-    interpreter_init(&repl->interp);
+    interpreter_init(&repl->interp, "REPL");
     repl->running     = 1;
     repl->line_number = 0;
 }

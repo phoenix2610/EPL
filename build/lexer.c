@@ -46,6 +46,7 @@ static PhraseEntry phrase_table[] = {
     { "make report",        TOKEN_MAKE_REPORT    },
     { "make stat",          TOKEN_MAKE_STAT      },
     { "make page",          TOKEN_MAKE_PAGE      },
+    { "make canvas3d",      TOKEN_CANVAS3D       },
     { NULL,                 TOKEN_UNKNOWN        }   /* sentinel */
 };
 

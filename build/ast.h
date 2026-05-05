@@ -8,7 +8,7 @@
    Adds: NODE_COLLECTION_OP, NODE_WHERE_FILTER
    ───────────────────────────────────────────── */
 
-#define MAX_TOKEN_LEN 256
+#define MAX_TOKEN_LEN 4096
 #define MAX_NAME_LEN  256
 
 /* ─────────────────────────────────────────────
