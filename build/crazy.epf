@@ -15,7 +15,11 @@ make page saved as "epl_landing.html" styled as "dark"
     paragraph "<style>.nav-brand{font-weight:700;font-size:1.2rem;letter-spacing:0.1em;color:#fff;}</style>"
     paragraph "<style>.nav-status{color:#666;font-size:0.9rem;}</style>"
     paragraph "<style>.pulse{background:#fff!important;box-shadow:0 0 10px #fff!important;}</style>"
-    paragraph "<div style='position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;gap:3rem;'><a href='epl_landing.html' style='color:#fff;text-decoration:none;'>Home</a><a href='epl_architecture.html' style='color:#fff;text-decoration:none;'>Architecture</a><a href='epl_signup.html' style='color:#fff;text-decoration:none;'>Early Access</a></div>"
+    paragraph "<span style='position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;gap:3rem;'>"
+    paragraph "<a href='epl_landing.html' style='color:#fff;text-decoration:none;'>Home</a>"
+    paragraph "<a href='epl_architecture.html' style='color:#fff;text-decoration:none;'>Architecture</a>"
+    paragraph "<a href='epl_signup.html' style='color:#fff;text-decoration:none;'>Early Access</a>"
+    paragraph "</span>"
 
     paragraph "<style>.hero{text-align:center;padding:6rem 0 5rem;perspective:1000px;}</style>"
     paragraph "<style>.hero img{width:160px;margin-bottom:2rem;transform-style:preserve-3d;transition:transform 0.1s;}</style>"
@@ -86,7 +90,7 @@ make page saved as "epl_architecture.html" styled as "dark"
 
     paragraph "<h2 style='font-size:2rem;color:#fff;margin:3rem 0 1rem;'>Compilation Latency (ms)</h2>"
     paragraph "<div style='background:#111;padding:2rem;border-radius:12px;border:1px solid #222;'><canvas id='cC' style='height:400px;width:100%;'></canvas></div>"
-    paragraph "<script>setTimeout(()=>{new Chart(document.getElementById('cC'),{type:'line',data:{labels:['Lexer','Parser','AST','Codegen','Linker'],datasets:[{data:[1.2,3.5,0.8,5.1,1.5],borderColor:'#22d3ee',backgroundColor:'rgba(34,211,238,0.15)',fill:true,tension:0.4}]}})},500)</script>"
+    paragraph "<script>setTimeout(()=>{new Chart(document.getElementById('cC'),{type:'line',data:{labels:['L','P','A','C','L'],datasets:[{data:[1,3,1,5,1],borderColor:'#0ff',backgroundColor:'#0ff3',fill:true,tension:.4}]}})},1)</script>"
 
 !
 
@@ -132,6 +136,6 @@ make page saved as "epl_signup.html" styled as "dark"
     
     paragraph "</div>"
 
-    paragraph "<script>document.getElementById('btn').onclick=()=>{let m=document.getElementById('mail').value;if(m.includes('@')){document.getElementById('msg').style.display='block';document.getElementById('btn').innerHTML='Sent!';}else{alert('Please enter a valid email.');}}</script>"
+    paragraph "<script>btn.onclick=()=>{if(mail.value.includes('@')){msg.style.display='block';btn.innerHTML='Sent!';}else{alert('Invalid Email');}}</script>"
 
 !
