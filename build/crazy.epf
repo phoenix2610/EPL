@@ -1,181 +1,146 @@
-describe dashboard as "Next-Gen IIoT Analytics Platform | Pitch Prototype v2.0"
+describe dashboard as "ARES | Planetary Command"
 
-### APEX INDUSTRIAL SYSTEMS - PITCH DECK DASHBOARD
-  Theme: dark | Zone: Global Operations | Purpose: Pitch Demo
-###
+# ── Planetary Data Models ──────────────────────────────────────────
+set fac_names    as ["Aegis Prime", "Vanguard Sec-4", "Titan Foundry", "Helios Array", "Nova Reactor", "Zenith Hub", "Apex Core"]
+set fac_output   as [12450, 9820, 15030, 8400, 11200, 14500, 18900]
+set fac_targets  as [12000, 10000, 14000, 8500, 11000, 14000, 18000]
 
-# ── Global Metrics ───────────────────────────────────────────────────
-set global_uptime  as 99.98
-set active_nodes   as 2048
-set anomalies      as 3
-set energy_eff     as 84.5
-set latency        as 12
+set sec_zones    as ["Sector 1", "Sector 2", "Sector 3", "Sector 4", "Sector 5", "Sector 6", "Sector 7"]
+set sec_threats  as [12, 4, 34, 0, 8, 21, 5]
+set sec_patrols  as [40, 40, 50, 20, 30, 45, 20]
 
-# ── Factory Outputs ──────────────────────────────────────────────────
-set fac_names    as ["Berlin Gigafactory", "Tokyo Plant", "Nevada Hub", "Shanghai Sector 4"]
-set fac_output   as [4200, 3850, 5100, 6200]
-set fac_targets  as [4000, 4000, 5000, 6000]
+set en_sources   as ["Solar Flux", "Geothermal", "Quantum Core", "Fusion K-2", "Hydro-Kinetic"]
+set en_output    as [450, 320, 1850, 2200, 140]
+set en_capacity  as [500, 350, 2000, 2500, 200]
 
-# ── Logistics & Fleet ────────────────────────────────────────────────
-set fleet_total  as 340
-set fleet_active as 312
-set fleet_maint  as 28
-set fleet_eff    as fleet_active divided by fleet_total
-set deliveries   as 12040
-
-# ── Predictive Maintenance ───────────────────────────────────────────
-set risk_assets  as 14
-set mtbf         as 8640
-set mttr         as 42
-set health       as 98.4
-
-# ── Financials ───────────────────────────────────────────────────────
-set rev_q1       as 14.2
-set rev_q2       as 18.5
-set rev_q3       as 21.1
-set rev_q4       as 24.8
-set quarters     as ["Q1", "Q2", "Q3", "Q4"]
-set rev_trend    as [14.2, 18.5, 21.1, 24.8]
-set margins      as [12.1, 14.5, 16.8, 19.2]
+set timeline     as ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00", "24:00"]
+set load_curve   as [42, 38, 75, 92, 88, 65, 45]
+set temp_curve   as [300, 295, 310, 345, 330, 315, 305]
 
 # ═════════════════════════════════════════════════════════════════
-#   PAGE 1 — GLOBAL HUB (3D NEXUS)
+#   PAGE 1 — GLOBAL NEXUS (3D COMMAND)
 # ═════════════════════════════════════════════════════════════════
+make page saved as "ares_global.html" styled as "dark"
+    paragraph "<style>.epl-paragraph:has(style){display:none!important;}</style>"
+    paragraph "<style>.epl-page{max-width:98vw!important;margin:0 auto;padding:1rem 2rem;}</style>"
+    paragraph "<style>.epl-row{grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:2.5rem;}</style>"
+    paragraph "<style>.epl-stat{padding:2.5rem;border-radius:20px;border:1px solid rgba(34,211,238,0.15);}</style>"
+    paragraph "<style>.epl-stat-value{font-size:3.8rem;text-shadow:0 0 20px rgba(34,211,238,0.4);}</style>"
+    paragraph "<style>.epl-section{border-radius:24px;padding:3rem;background:linear-gradient(135deg,rgba(15,23,42,0.8),rgba(0,0,0,0.95));}</style>"
+    paragraph "<style>.epl-section{border:1px solid rgba(34,211,238,0.2);box-shadow:0 20px 50px rgba(0,0,0,0.6),inset 0 0 40px rgba(34,211,238,0.04);}</style>"
+    paragraph "<style>h1{font-size:4.5rem;letter-spacing:0.05em;background:linear-gradient(90deg,#22d3ee,#818cf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:0.5rem;}</style>"
+    paragraph "<style>h2{font-size:1.8rem;letter-spacing:0.2em;color:#cbd5e1;margin-bottom:2.5rem;}</style>"
+    paragraph "<style>.epl-chart-wrap canvas{height:420px!important;max-height:600px;}table{font-size:1.15rem;}</style>"
+    paragraph "<style>th{font-size:0.9rem;padding:1.2rem;background:rgba(34,211,238,0.1);color:#22d3ee;}td{padding:1.2rem;}</style>"
+    
+    heading "A.R.E.S. COMMAND"
+    subheading "Autonomous Resource & Execution System — Global Overview"
+    paragraph "Live planetary telemetry. Full responsive modulus engaged. Edge-to-edge rendering."
+    divider
 
-make page saved as "pitch_hub.html" styled as "dark"
-
-    canvas3d "APEX GLOBAL HUB" background "deep-space"
-        core star color "cyan" labeled "Central Neural Core"
-
-        # Ring 1 - Edge Computing Nodes
-        orbital ring radius 60 color "blue" speed 0.015
-            node at 0.0 labeled "Edge Server Alpha" status "completed"
-            node at 2.0 labeled "Edge Server Beta"  status "completed"
-            node at 4.0 labeled "Edge Server Gamma" status "completed"
-        !
-
-        # Ring 2 - Global Gigafactories
-        orbital ring radius 120 color "gold" speed 0.008
-            node at 0.5 labeled "Berlin Gigafactory" status "completed"
-            node at 2.5 labeled "Tokyo Plant"        status "inprogress"
-            node at 4.5 labeled "Nevada Hub"         status "completed"
-            node at 6.0 labeled "Shanghai Sector 4"  status "completed"
-        !
-
-        # Ring 3 - Satellite Uplinks
-        orbital ring radius 180 color "purple" speed 0.003
-            node at 1.0 labeled "Uplink SAT-1" status "completed"
-            node at 3.0 labeled "Uplink SAT-2" status "inprogress"
-            node at 5.0 labeled "Uplink SAT-3" status "pending"
-        !
-
-        # Ring 4 - Anomaly Detection Grid
-        orbital ring radius 250 color "red" speed 0.001
-            node at 1.5 labeled "Sector 7 Intrusion" status "inprogress"
-            node at 4.5 labeled "Thermal Spike P3"   status "pending"
-        !
-    !
-
-    panel "right"
-        heading "Global Network Overview"
-        subheading "Live telemetry from 2048 active nodes."
+    canvas3d "PLANETARY COMMAND GRID" background "deep space"
+        core star color "cyan" labeled "A.R.E.S. Neural Core"
         
-        make stat "Global Uptime" from global_uptime rounded to 2
-        make stat "Active Nodes"  from active_nodes
-        make stat "Active Anomalies" from anomalies
-        make stat "Network Latency"  from latency
-        make stat "Energy Efficiency" from energy_eff rounded to 1
+        orbital ring radius 100 color "blue" speed 0.015
+            node at 0.0 labeled "Uplink Alpha" status "completed"
+            node at 2.0 labeled "Uplink Beta" status "inprogress"
+            node at 4.0 labeled "Uplink Gamma" status "completed"
+            node at 5.5 labeled "Uplink Delta" status "completed"
+        !
+        
+        orbital ring radius 180 color "amber" speed 0.005
+            node at 1.0 labeled "Aegis Prime" status "completed"
+            node at 3.0 labeled "Titan Foundry" status "completed"
+            node at 5.0 labeled "Nova Reactor" status "pending"
+        !
+        
+        orbital ring radius 280 color "red" speed 0.001
+            node at 0.5 labeled "Threat Vector 1" status "inprogress"
+            node at 2.5 labeled "Intrusion Alert" status "overdue"
+            node at 4.5 labeled "Anomaly Zeta" status "overdue"
+        !
     !
 
+    section "Core Telemetry & Live Diagnostics"
+        row
+            make stat "System Uptime"  from 99.99
+            make stat "Active Nodes"   from 8402
+            make stat "Global Threat"  from 12
+            make stat "Net Output"     from 90300
+            make stat "Energy Draw"    from 4960
+        !
+    !
 !
 
 # ═════════════════════════════════════════════════════════════════
-#   PAGE 2 — PRODUCTION ANALYTICS
+#   PAGE 2 — TITAN FOUNDRIES
 # ═════════════════════════════════════════════════════════════════
+make page saved as "ares_production.html" styled as "dark"
+    paragraph "<style>.epl-paragraph:has(style){display:none!important;}</style>"
+    paragraph "<style>.epl-page{max-width:98vw!important;margin:0 auto;padding:1rem 2rem;}</style>"
+    paragraph "<style>.epl-row{grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:2.5rem;}</style>"
+    paragraph "<style>.epl-stat{padding:2.5rem;border-radius:20px;border:1px solid rgba(34,211,238,0.15);}</style>"
+    paragraph "<style>.epl-stat-value{font-size:3.8rem;text-shadow:0 0 20px rgba(34,211,238,0.4);}</style>"
+    paragraph "<style>.epl-section{border-radius:24px;padding:3rem;background:linear-gradient(135deg,rgba(15,23,42,0.8),rgba(0,0,0,0.95));}</style>"
+    paragraph "<style>.epl-section{border:1px solid rgba(34,211,238,0.2);box-shadow:0 20px 50px rgba(0,0,0,0.6),inset 0 0 40px rgba(34,211,238,0.04);}</style>"
+    paragraph "<style>h1{font-size:4.5rem;letter-spacing:0.05em;background:linear-gradient(90deg,#22d3ee,#818cf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:0.5rem;}</style>"
+    paragraph "<style>h2{font-size:1.8rem;letter-spacing:0.2em;color:#cbd5e1;margin-bottom:2.5rem;}</style>"
+    paragraph "<style>.epl-chart-wrap canvas{height:420px!important;max-height:600px;}table{font-size:1.15rem;}</style>"
+    paragraph "<style>th{font-size:0.9rem;padding:1.2rem;background:rgba(34,211,238,0.1);color:#22d3ee;}td{padding:1.2rem;}</style>"
 
-make page saved as "pitch_production.html" styled as "dark"
-
-    heading "Production Analytics"
-    subheading "Live Throughput & Output vs Target Metrics"
-    paragraph "Global manufacturing telemetry aggregated via secure edge nodes."
+    heading "TITAN FOUNDRIES"
+    subheading "Planetary Manufacturing & Output Metrics"
+    paragraph "Real-time production values across all 7 global megastructures."
     divider
 
-    section "Throughput Snapshot"
+    section "Production Output vs Target Baselines"
+        make bar chart for x axis as fac_names and y axis as fac_output titled "Live Output (Units)"
+        make line chart for x axis as fac_names and y axis as fac_targets titled "Target Baselines"
+    !
+
+    section "Energy Grid Load Distribution"
         row
-            make stat "Total Global Output" from 19350
-            make stat "Target Adherence"    from 1.018 rounded to 2
-            make stat "Global Uptime %"     from global_uptime
-            make stat "Anomalies Detected"  from anomalies
+            make bar chart for x axis as en_sources and y axis as en_output titled "Current Generation (GW)"
+            make line chart for x axis as en_sources and y axis as en_capacity titled "Max Capacity (GW)"
         !
     !
 
-    section "Factory Performance Metrics"
-        make bar chart for x axis as fac_names and y axis as fac_output titled "Actual Production Volume"
-        make line chart for x axis as fac_names and y axis as fac_targets titled "Production Targets"
+    section "Facility Status Ledger"
+        make table from fac_names titled "Facility Network Registry"
+        make report from fac_output titled "Production Yield Data"
     !
-
-    section "Detailed Factory Directory"
-        make table from fac_names titled "Facility Information"
-        make report from fac_output titled "Current Output (Units)"
-    !
-
 !
 
 # ═════════════════════════════════════════════════════════════════
-#   PAGE 3 — LOGISTICS & FLEET
+#   PAGE 3 — THREAT VECTOR ANALYSIS
 # ═════════════════════════════════════════════════════════════════
+make page saved as "ares_security.html" styled as "dark"
+    paragraph "<style>.epl-paragraph:has(style){display:none!important;}</style>"
+    paragraph "<style>.epl-page{max-width:98vw!important;margin:0 auto;padding:1rem 2rem;}</style>"
+    paragraph "<style>.epl-row{grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:2.5rem;}</style>"
+    paragraph "<style>.epl-stat{padding:2.5rem;border-radius:20px;border:1px solid rgba(34,211,238,0.15);}</style>"
+    paragraph "<style>.epl-stat-value{font-size:3.8rem;text-shadow:0 0 20px rgba(34,211,238,0.4);}</style>"
+    paragraph "<style>.epl-section{border-radius:24px;padding:3rem;background:linear-gradient(135deg,rgba(15,23,42,0.8),rgba(0,0,0,0.95));}</style>"
+    paragraph "<style>.epl-section{border:1px solid rgba(34,211,238,0.2);box-shadow:0 20px 50px rgba(0,0,0,0.6),inset 0 0 40px rgba(34,211,238,0.04);}</style>"
+    paragraph "<style>h1{font-size:4.5rem;letter-spacing:0.05em;background:linear-gradient(90deg,#22d3ee,#818cf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:0.5rem;}</style>"
+    paragraph "<style>h2{font-size:1.8rem;letter-spacing:0.2em;color:#cbd5e1;margin-bottom:2.5rem;}</style>"
+    paragraph "<style>.epl-chart-wrap canvas{height:420px!important;max-height:600px;}table{font-size:1.15rem;}</style>"
+    paragraph "<style>th{font-size:0.9rem;padding:1.2rem;background:rgba(34,211,238,0.1);color:#22d3ee;}td{padding:1.2rem;}</style>"
 
-make page saved as "pitch_logistics.html" styled as "dark"
-
-    heading "Global Supply Chain & Logistics"
-    subheading "Autonomous Fleet Tracking & Delivery Metrics"
-    paragraph "Real-time routing and maintenance tracking for autonomous logistics."
+    heading "THREAT VECTOR ANALYSIS"
+    subheading "Sector Intrusion & Defense Patrols"
+    paragraph "Automated defense grid tracking, anomaly resolution, and thermal monitoring."
     divider
 
-    section "Fleet Overview"
+    section "Sector Security Load"
+        make bar chart for x axis as sec_zones and y axis as sec_threats titled "Active Intrusions"
+        make line chart for x axis as sec_zones and y axis as sec_patrols titled "Deployed Patrol Units"
+    !
+
+    section "Thermal & System Load (24H Matrix)"
         row
-            make stat "Total Vehicles"  from fleet_total
-            make stat "Active Fleet"    from fleet_active
-            make stat "In Maintenance"  from fleet_maint
-            make stat "Fleet Readiness" from fleet_eff rounded to 2
-            make stat "Completed Deliveries" from deliveries
+            make line chart for x axis as timeline and y axis as load_curve titled "System Load (%)"
+            make line chart for x axis as timeline and y axis as temp_curve titled "Core Temp (K)"
         !
     !
-
-    section "Predictive Maintenance"
-        row
-            make stat "Assets at Risk"  from risk_assets
-            make stat "MTBF (Hours)"    from mtbf
-            make stat "MTTR (Hours)"    from mttr
-            make stat "Overall Health"  from health rounded to 1
-        !
-    !
-
-!
-
-# ═════════════════════════════════════════════════════════════════
-#   PAGE 4 — FINANCIALS & FORECASTS
-# ═════════════════════════════════════════════════════════════════
-
-make page saved as "pitch_financials.html" styled as "dark"
-
-    heading "Executive Financial Summary"
-    subheading "Quarterly Revenue & Margin Trajectory"
-    paragraph "Financial performance overlaid with operational efficiency savings."
-    divider
-
-    section "Quarterly Snapshot (in Millions)"
-        row
-            make stat "Q1 Revenue" from rev_q1 rounded to 1
-            make stat "Q2 Revenue" from rev_q2 rounded to 1
-            make stat "Q3 Revenue" from rev_q3 rounded to 1
-            make stat "Q4 Revenue" from rev_q4 rounded to 1
-        !
-    !
-
-    section "Revenue & Margin Trajectory"
-        make line chart for x axis as quarters and y axis as rev_trend titled "Gross Revenue Trend ($M)"
-        make bar chart for x axis as quarters and y axis as margins titled "Operating Margin (%)"
-    !
-
 !
