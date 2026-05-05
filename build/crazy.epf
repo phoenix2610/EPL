@@ -1,146 +1,78 @@
-describe dashboard as "ARES | Planetary Command"
+describe dashboard as "EPL | The Future of Code"
 
-# ── Planetary Data Models ──────────────────────────────────────────
-set fac_names    as ["Aegis Prime", "Vanguard Sec-4", "Titan Foundry", "Helios Array", "Nova Reactor", "Zenith Hub", "Apex Core"]
-set fac_output   as [12450, 9820, 15030, 8400, 11200, 14500, 18900]
-set fac_targets  as [12000, 10000, 14000, 8500, 11000, 14000, 18000]
+set speedup       as 400
+set readability   as 98.5
+set zero_syntax   as 100
 
-set sec_zones    as ["Sector 1", "Sector 2", "Sector 3", "Sector 4", "Sector 5", "Sector 6", "Sector 7"]
-set sec_threats  as [12, 4, 34, 0, 8, 21, 5]
-set sec_patrols  as [40, 40, 50, 20, 30, 45, 20]
+make page saved as "epl_landing.html" styled as "dark"
 
-set en_sources   as ["Solar Flux", "Geothermal", "Quantum Core", "Fusion K-2", "Hydro-Kinetic"]
-set en_output    as [450, 320, 1850, 2200, 140]
-set en_capacity  as [500, 350, 2000, 2500, 200]
-
-set timeline     as ["00:00", "04:00", "08:00", "12:00", "16:00", "20:00", "24:00"]
-set load_curve   as [42, 38, 75, 92, 88, 65, 45]
-set temp_curve   as [300, 295, 310, 345, 330, 315, 305]
-
-# ═════════════════════════════════════════════════════════════════
-#   PAGE 1 — GLOBAL NEXUS (3D COMMAND)
-# ═════════════════════════════════════════════════════════════════
-make page saved as "ares_global.html" styled as "dark"
+    # --- CSS INJECTIONS ---
     paragraph "<style>.epl-paragraph:has(style){display:none!important;}</style>"
-    paragraph "<style>.epl-page{max-width:98vw!important;margin:0 auto;padding:1rem 2rem;}</style>"
-    paragraph "<style>.epl-row{grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:2.5rem;}</style>"
-    paragraph "<style>.epl-stat{padding:2.5rem;border-radius:20px;border:1px solid rgba(34,211,238,0.15);}</style>"
-    paragraph "<style>.epl-stat-value{font-size:3.8rem;text-shadow:0 0 20px rgba(34,211,238,0.4);}</style>"
-    paragraph "<style>.epl-section{border-radius:24px;padding:3rem;background:linear-gradient(135deg,rgba(15,23,42,0.8),rgba(0,0,0,0.95));}</style>"
-    paragraph "<style>.epl-section{border:1px solid rgba(34,211,238,0.2);box-shadow:0 20px 50px rgba(0,0,0,0.6),inset 0 0 40px rgba(34,211,238,0.04);}</style>"
-    paragraph "<style>h1{font-size:4.5rem;letter-spacing:0.05em;background:linear-gradient(90deg,#22d3ee,#818cf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:0.5rem;}</style>"
-    paragraph "<style>h2{font-size:1.8rem;letter-spacing:0.2em;color:#cbd5e1;margin-bottom:2.5rem;}</style>"
-    paragraph "<style>.epl-chart-wrap canvas{height:420px!important;max-height:600px;}table{font-size:1.15rem;}</style>"
-    paragraph "<style>th{font-size:0.9rem;padding:1.2rem;background:rgba(34,211,238,0.1);color:#22d3ee;}td{padding:1.2rem;}</style>"
+    paragraph "<style>body{background:#0a0a0a!important;color:#ededed!important;font-family:'Inter',sans-serif;}</style>"
+    paragraph "<style>.epl-shell-sidebar{display:none!important;}</style>"
+    paragraph "<style>.epl-shell-main{margin-left:0!important;width:100%!important;background:#0a0a0a!important;}</style>"
+    paragraph "<style>.epl-top-nav{background:rgba(10,10,10,0.8)!important;border-bottom:1px solid #222!important;backdrop-filter:blur(10px);}</style>"
+    paragraph "<style>.epl-page{max-width:1100px!important;margin:0 auto;padding:2rem 2rem 6rem;}</style>"
     
-    heading "A.R.E.S. COMMAND"
-    subheading "Autonomous Resource & Execution System — Global Overview"
-    paragraph "Live planetary telemetry. Full responsive modulus engaged. Edge-to-edge rendering."
-    divider
+    paragraph "<style>.hero{text-align:center;padding:6rem 0 5rem;}</style>"
+    paragraph "<style>.hero img{width:140px;margin-bottom:2rem;animation:float 6s ease-in-out infinite;}</style>"
+    paragraph "<style>.hero h1{font-size:5rem;letter-spacing:-0.04em;background:linear-gradient(180deg,#fff,#666);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:1.5rem;}</style>"
+    paragraph "<style>.hero p{font-size:1.4rem;color:#888;max-width:650px;margin:0 auto 3rem;line-height:1.6;}</style>"
+    paragraph "<style>.cta-button{display:inline-block;background:#fff;color:#000;padding:1rem 2.5rem;border-radius:30px;font-size:1.1rem;font-weight:600;transition:all 0.2s;cursor:pointer;}</style>"
+    paragraph "<style>.cta-button:hover{transform:translateY(-2px);box-shadow:0 4px 20px rgba(255,255,255,0.3);}</style>"
+    paragraph "<style>.cta-button:active{transform:translateY(0) scale(0.98);}</style>"
+    paragraph "<style>@keyframes float{0%{transform:translateY(0px);}50%{transform:translateY(-10px);}100%{transform:translateY(0px);}}</style>"
+    
+    paragraph "<style>.epl-section{background:#0f0f0f;border:1px solid #222;border-radius:12px;padding:3rem;transition:all 0.3s ease;margin-bottom:3rem;}</style>"
+    paragraph "<style>.epl-section:hover{border-color:#444;box-shadow:0 10px 40px rgba(0,0,0,0.5);}</style>"
+    paragraph "<style>h2{font-size:2rem;letter-spacing:-0.02em;color:#fff;margin-bottom:2rem;border-bottom:none;text-transform:none;}</style>"
+    
+    paragraph "<style>.epl-stat{background:#050505;border:1px solid #222;border-radius:8px;padding:2.5rem;transition:all 0.3s ease;text-align:center;cursor:pointer;}</style>"
+    paragraph "<style>.epl-stat:hover{background:#111;border-color:#666;transform:translateY(-4px);box-shadow:0 8px 30px rgba(255,255,255,0.05);}</style>"
+    paragraph "<style>.epl-stat-value{font-size:3.5rem;font-weight:700;color:#fff;letter-spacing:-0.03em;}</style>"
+    paragraph "<style>.epl-stat-label{color:#888;font-size:0.9rem;text-transform:uppercase;letter-spacing:0.1em;margin-top:0.8rem;}</style>"
+    paragraph "<style>.epl-row{grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:2.5rem;margin-bottom:2rem;}</style>"
+    
+    paragraph "<style>.card{background:#050505;padding:2.5rem;border-radius:12px;border:1px solid #222;text-align:left;cursor:pointer;transition:all 0.3s;}</style>"
+    paragraph "<style>.card:hover{background:#111;border-color:#555;transform:translateY(-5px);}</style>"
+    paragraph "<style>.card:active{transform:translateY(0);border-color:#fff;}</style>"
+    paragraph "<style>.card h3{color:#fff;margin-top:0;font-size:1.4rem;margin-bottom:1rem;font-weight:600;}</style>"
+    paragraph "<style>.card p{color:#888;font-size:1.05rem;line-height:1.6;margin:0;}</style>"
+    
+    paragraph "<style>.nav-brand { font-weight: 700; font-size: 1.2rem; letter-spacing: 0.1em; color: #fff; }</style>"
+    paragraph "<style>.nav-status { color: #666; font-size: 0.9rem; }</style>"
+    paragraph "<style>.pulse { background: #fff !important; box-shadow: 0 0 10px #fff !important; }</style>"
 
-    canvas3d "PLANETARY COMMAND GRID" background "deep space"
-        core star color "cyan" labeled "A.R.E.S. Neural Core"
-        
-        orbital ring radius 100 color "blue" speed 0.015
-            node at 0.0 labeled "Uplink Alpha" status "completed"
-            node at 2.0 labeled "Uplink Beta" status "inprogress"
-            node at 4.0 labeled "Uplink Gamma" status "completed"
-            node at 5.5 labeled "Uplink Delta" status "completed"
-        !
-        
-        orbital ring radius 180 color "amber" speed 0.005
-            node at 1.0 labeled "Aegis Prime" status "completed"
-            node at 3.0 labeled "Titan Foundry" status "completed"
-            node at 5.0 labeled "Nova Reactor" status "pending"
-        !
-        
-        orbital ring radius 280 color "red" speed 0.001
-            node at 0.5 labeled "Threat Vector 1" status "inprogress"
-            node at 2.5 labeled "Intrusion Alert" status "overdue"
-            node at 4.5 labeled "Anomaly Zeta" status "overdue"
-        !
-    !
+    # ── HERO SECTION ──
+    paragraph "<span class='hero' style='display:block;'>"
+    paragraph "<img src='../documentation/EPL_logo.png' />"
+    paragraph "<h1>Code Like You Speak.</h1>"
+    paragraph "<p>The first fully semantic, plain-English language designed for zero-boilerplate development.</p>"
+    paragraph "<span class='cta-button' onclick='alert(\"Downloading EPL v1.6...\")'>Download v1.6</span>"
+    paragraph "</span>"
+    
+    # ── FEATURE CARDS ──
+    paragraph "<span class='epl-row' style='display:grid;'>"
+    paragraph "<span class='card' style='display:block;'><h3>Semantic Parser</h3><p>Translates English to C binaries.</p></span>"
+    paragraph "<span class='card' style='display:block;'><h3>Native Dashboards</h3><p>Compile logic directly to UI.</p></span>"
+    paragraph "<span class='card' style='display:block;'><h3>Memory Safe</h3><p>Built-in orphan sweeping engine.</p></span>"
+    paragraph "</span>"
 
-    section "Core Telemetry & Live Diagnostics"
+    # ── NATIVE EPL METRICS ──
+    section "Unprecedented Efficiency"
         row
-            make stat "System Uptime"  from 99.99
-            make stat "Active Nodes"   from 8402
-            make stat "Global Threat"  from 12
-            make stat "Net Output"     from 90300
-            make stat "Energy Draw"    from 4960
-        !
-    !
-!
-
-# ═════════════════════════════════════════════════════════════════
-#   PAGE 2 — TITAN FOUNDRIES
-# ═════════════════════════════════════════════════════════════════
-make page saved as "ares_production.html" styled as "dark"
-    paragraph "<style>.epl-paragraph:has(style){display:none!important;}</style>"
-    paragraph "<style>.epl-page{max-width:98vw!important;margin:0 auto;padding:1rem 2rem;}</style>"
-    paragraph "<style>.epl-row{grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:2.5rem;}</style>"
-    paragraph "<style>.epl-stat{padding:2.5rem;border-radius:20px;border:1px solid rgba(34,211,238,0.15);}</style>"
-    paragraph "<style>.epl-stat-value{font-size:3.8rem;text-shadow:0 0 20px rgba(34,211,238,0.4);}</style>"
-    paragraph "<style>.epl-section{border-radius:24px;padding:3rem;background:linear-gradient(135deg,rgba(15,23,42,0.8),rgba(0,0,0,0.95));}</style>"
-    paragraph "<style>.epl-section{border:1px solid rgba(34,211,238,0.2);box-shadow:0 20px 50px rgba(0,0,0,0.6),inset 0 0 40px rgba(34,211,238,0.04);}</style>"
-    paragraph "<style>h1{font-size:4.5rem;letter-spacing:0.05em;background:linear-gradient(90deg,#22d3ee,#818cf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:0.5rem;}</style>"
-    paragraph "<style>h2{font-size:1.8rem;letter-spacing:0.2em;color:#cbd5e1;margin-bottom:2.5rem;}</style>"
-    paragraph "<style>.epl-chart-wrap canvas{height:420px!important;max-height:600px;}table{font-size:1.15rem;}</style>"
-    paragraph "<style>th{font-size:0.9rem;padding:1.2rem;background:rgba(34,211,238,0.1);color:#22d3ee;}td{padding:1.2rem;}</style>"
-
-    heading "TITAN FOUNDRIES"
-    subheading "Planetary Manufacturing & Output Metrics"
-    paragraph "Real-time production values across all 7 global megastructures."
-    divider
-
-    section "Production Output vs Target Baselines"
-        make bar chart for x axis as fac_names and y axis as fac_output titled "Live Output (Units)"
-        make line chart for x axis as fac_names and y axis as fac_targets titled "Target Baselines"
-    !
-
-    section "Energy Grid Load Distribution"
-        row
-            make bar chart for x axis as en_sources and y axis as en_output titled "Current Generation (GW)"
-            make line chart for x axis as en_sources and y axis as en_capacity titled "Max Capacity (GW)"
+            make stat "Development Speedup %" from speedup
+            make stat "Readability Score" from readability
+            make stat "Zero Syntax Errors" from zero_syntax
         !
     !
 
-    section "Facility Status Ledger"
-        make table from fac_names titled "Facility Network Registry"
-        make report from fac_output titled "Production Yield Data"
-    !
-!
-
-# ═════════════════════════════════════════════════════════════════
-#   PAGE 3 — THREAT VECTOR ANALYSIS
-# ═════════════════════════════════════════════════════════════════
-make page saved as "ares_security.html" styled as "dark"
-    paragraph "<style>.epl-paragraph:has(style){display:none!important;}</style>"
-    paragraph "<style>.epl-page{max-width:98vw!important;margin:0 auto;padding:1rem 2rem;}</style>"
-    paragraph "<style>.epl-row{grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:2.5rem;}</style>"
-    paragraph "<style>.epl-stat{padding:2.5rem;border-radius:20px;border:1px solid rgba(34,211,238,0.15);}</style>"
-    paragraph "<style>.epl-stat-value{font-size:3.8rem;text-shadow:0 0 20px rgba(34,211,238,0.4);}</style>"
-    paragraph "<style>.epl-section{border-radius:24px;padding:3rem;background:linear-gradient(135deg,rgba(15,23,42,0.8),rgba(0,0,0,0.95));}</style>"
-    paragraph "<style>.epl-section{border:1px solid rgba(34,211,238,0.2);box-shadow:0 20px 50px rgba(0,0,0,0.6),inset 0 0 40px rgba(34,211,238,0.04);}</style>"
-    paragraph "<style>h1{font-size:4.5rem;letter-spacing:0.05em;background:linear-gradient(90deg,#22d3ee,#818cf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:0.5rem;}</style>"
-    paragraph "<style>h2{font-size:1.8rem;letter-spacing:0.2em;color:#cbd5e1;margin-bottom:2.5rem;}</style>"
-    paragraph "<style>.epl-chart-wrap canvas{height:420px!important;max-height:600px;}table{font-size:1.15rem;}</style>"
-    paragraph "<style>th{font-size:0.9rem;padding:1.2rem;background:rgba(34,211,238,0.1);color:#22d3ee;}td{padding:1.2rem;}</style>"
-
-    heading "THREAT VECTOR ANALYSIS"
-    subheading "Sector Intrusion & Defense Patrols"
-    paragraph "Automated defense grid tracking, anomaly resolution, and thermal monitoring."
-    divider
-
-    section "Sector Security Load"
-        make bar chart for x axis as sec_zones and y axis as sec_threats titled "Active Intrusions"
-        make line chart for x axis as sec_zones and y axis as sec_patrols titled "Deployed Patrol Units"
+    # ── CHART DATA ──
+    set langs as ["C++", "Java", "Python", "EPL v1.6"]
+    set read_idx as [24, 45, 82, 100]
+    
+    section "Comparative Benchmarks"
+        make bar chart for x axis as langs and y axis as read_idx titled "Language Readability Index"
     !
 
-    section "Thermal & System Load (24H Matrix)"
-        row
-            make line chart for x axis as timeline and y axis as load_curve titled "System Load (%)"
-            make line chart for x axis as timeline and y axis as temp_curve titled "Core Temp (K)"
-        !
-    !
 !
