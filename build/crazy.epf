@@ -1,0 +1,206 @@
+describe dashboard as "VulcanTech Manufacturing Suite | EPL v1.6 — Multi-Page"
+
+### VULCANTECH MANUFACTURING SYSTEM
+  One EPF source — five isolated HTML modules.
+  Theme: dark | Zone: Industrial-7 | Shift: Alpha
+###
+
+# ── Workforce ────────────────────────────────────────────────────
+set headcount    as 148
+set onshift      as 94
+set onleave      as 12
+set absent       as 8
+set trainees     as 34
+set productive   as onshift minus trainees
+set efficiency   as productive divided by headcount
+
+# ── Orders ───────────────────────────────────────────────────────
+set orders       as 87
+set orderdone    as 64
+set orderactive  as 18
+set orderdelayed as 5
+set fillrate     as orderdone divided by orders
+
+# ── Products ─────────────────────────────────────────────────────
+set prodcount    as 6
+set activeprod   as 4
+set retiredprod  as 2
+
+# ── Inventory ────────────────────────────────────────────────────
+set rawstock     as 2840
+set wip          as 612
+set finished     as 1490
+set lowstock     as 3
+set totalstock   as rawstock plus wip plus finished
+
+# ── BOM ──────────────────────────────────────────────────────────
+set bomcount     as 24
+set bomapproved  as 19
+set bompen       as 5
+
+# ── List Data ────────────────────────────────────────────────────
+set departments as ["Production", "Quality", "Logistics", "Assembly", "R&D", "Maintenance"]
+set deptsizes   as [38, 22, 19, 41, 16, 12]
+set depteff     as [88, 91, 76, 84, 79, 95]
+
+set prodnames   as ["Turbine A7", "Gear X3", "Shaft K1", "Valve V5", "Coupling C2", "Filter F8"]
+set prodout     as [1240, 980, 640, 820, 310, 180]
+set prodtarget  as [1200, 1000, 700, 800, 350, 200]
+
+set materials   as ["Steel 304", "Aluminium 6061", "Copper 12G", "Polymer A", "Carbon T3"]
+set matstock    as [840, 620, 310, 180, 95]
+set matusage    as [120, 85, 42, 30, 18]
+
+# ── Computed ─────────────────────────────────────────────────────
+set avg dept    as average of deptsizes
+set avg eff     as average of depteff
+set top eff     as maximum of depteff
+set total prod  as total of prodout
+set avg stock   as average of matstock
+set min stock   as minimum of matstock
+
+to assess output
+    if efficiency is greater than 0.7 then
+        return "HIGH OUTPUT"
+    !
+    if efficiency is greater than 0.5 then
+        return "MODERATE"
+    !
+    return "LOW OUTPUT"
+!
+
+set outputlevel by assess output
+
+to check reorder
+    if lowstock is greater than 2 then
+        return "REORDER REQUIRED"
+    !
+    return "STOCK HEALTHY"
+!
+
+set invstatus by check reorder
+
+# ═════════════════════════════════════════════════════════════════
+#   PAGE 1 — MAIN DASHBOARD
+# ═════════════════════════════════════════════════════════════════
+
+make page saved as "crazy_dashboard.html" styled as "dark"
+
+    heading "Rand Industries"
+    subheading "Manufacturing Operations Dashboard — Shift Alpha"
+    paragraph "Live operational overview across all zones. Data reflects current shift state."
+    divider
+
+    section "Workforce Snapshot"
+        row
+            make stat "Headcount"    from headcount
+            make stat "On Shift"     from onshift
+            make stat "Productive"   from productive
+            make stat "Trainees"     from trainees
+            make stat "Efficiency"   from efficiency rounded to 2
+            make stat "Output Level" from outputlevel
+        !
+    !
+
+    section "Order Pipeline"
+        row
+            make stat "Total Orders"   from orders
+            make stat "Completed"      from orderdone
+            make stat "Active"         from orderactive
+            make stat "Delayed"        from orderdelayed
+            make stat "Fill Rate"      from fillrate rounded to 2
+        !
+        make bar chart for x axis as departments and y axis as deptsizes titled "Headcount by Department"
+    !
+
+    section "Inventory Pulse"
+        row
+            make stat "Raw Stock"   from rawstock
+            make stat "WIP"         from wip
+            make stat "Finished"    from finished
+            make stat "Total"       from totalstock
+            make stat "Inv Status"  from invstatus
+        !
+    !
+
+!
+
+# ═════════════════════════════════════════════════════════════════
+#   PAGE 2 — EMPLOYEE MANAGEMENT SYSTEM
+# ═════════════════════════════════════════════════════════════════
+
+make page saved as "crazy_employees.html" styled as "dark"
+
+    heading "Employee Management System"
+    subheading "Workforce Allocation — Industrial Zone 7"
+    paragraph "Real-time workforce breakdown across all shift categories and departments."
+    divider
+
+    section "Shift Status"
+        row
+            make stat "Total Headcount" from headcount
+            make stat "On Shift"        from onshift
+            make stat "On Leave"        from onleave
+            make stat "Absent"          from absent
+            make stat "Trainees"        from trainees
+            make stat "Productive"      from productive
+        !
+    !
+
+    section "Performance Metrics"
+        row
+            make stat "Avg Dept Size"  from avg dept
+            make stat "Avg Efficiency" from avg eff
+            make stat "Top Efficiency" from top eff
+            make stat "Efficiency"     from efficiency rounded to 2
+        !
+        make bar chart for x axis as departments and y axis as depteff titled "Efficiency % by Department"
+    !
+
+    section "Department Directory"
+        make table from departments titled "All Departments"
+        make report from deptsizes titled "Department Size Report"
+    !
+
+!
+
+# ═════════════════════════════════════════════════════════════════
+#   PAGE 3 — BILL OF MATERIALS
+# ═════════════════════════════════════════════════════════════════
+
+make page saved as "crazy_bom.html" styled as "dark"
+
+    heading "Bill of Materials"
+    subheading "Approved Material Registry — VulcanTech Industries"
+    paragraph "Complete BOM ledger with approval status, stock levels, and daily consumption rates."
+    divider
+
+    section "BOM Registry"
+        row
+            make stat "Total BOMs"  from bomcount
+            make stat "Approved"    from bomapproved
+            make stat "Pending"     from bompen
+            make stat "Approval %"  from bomapproved divided by bomcount rounded to 2
+        !
+    !
+
+    section "Material Stock"
+        row
+            make stat "Avg Stock"   from avg stock rounded to 0
+            make stat "Min Stock"   from min stock
+            make stat "Low SKUs"    from lowstock
+            make stat "Inv Status"  from invstatus
+        !
+        make bar chart for x axis as materials and y axis as matstock titled "Stock Level per Material"
+    !
+
+    section "Material Directory"
+        make table  from materials titled "Raw Material List"
+        make report from matstock   titled "Stock Level Statistics"
+        make report from matusage   titled "Daily Consumption Statistics"
+    !
+
+!
+
+# ═════════════════════════════════════════════════════════════════
+

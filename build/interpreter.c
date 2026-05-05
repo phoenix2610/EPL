@@ -8,6 +8,7 @@
 #include <ctype.h>
 #include "interpreter.h"
 #include "codegen.h"
+#include "binding.h"
 
 /* ─────────────────────────────────────────────
    EPL Interpreter v1.2
@@ -284,12 +285,13 @@ int env_update(Env *env, const char *name, Value *value) {
 /* ═════════════════════════════════════════════
    INTERPRETER INIT / FREE
    ═════════════════════════════════════════════ */
-void interpreter_init(Interpreter *interp) {
-    interp->global       = env_new(NULL);
-    interp->signal.type  = SIG_NONE;
-    interp->signal.value = NULL;
-    interp->had_error    = 0;
-    interp->call_depth   = 0;
+void interpreter_init(Interpreter *interp, const char *source_file) {
+    interp->global = env_new(NULL);
+    interp->signal = (Signal){SIG_NONE, NULL};
+    interp->had_error = 0;
+    interp->call_depth = 0;
+    interp->source_file = source_file;
+    interp->page_manifest = NULL;   /* v1.7 — populated in interpreter_run */
 }
 
 void interpreter_free(Interpreter *interp) {
@@ -1301,7 +1303,7 @@ void exec_node(Interpreter *interp, ASTNode *node, Env *env) {
             break;
 
         case NODE_MAKE_PAGE:
-            codegen_page(interp, env, node);
+            codegen_page(interp, env, node, interp->page_manifest);
             break;
 
         case NODE_SET: {
@@ -1605,11 +1607,12 @@ void exec_block(Interpreter *interp, NodeList *list, Env *env) {
 
 
 /* ═════════════════════════════════════════════
-   INTERPRETER RUN — MAIN ENTRY
+   INTERPRETER RUN — MAIN ENTRY  (v1.7)
    ═════════════════════════════════════════════ */
 void interpreter_run(Interpreter *interp, ASTNode *program) {
     if (!program || program->type != NODE_PROGRAM) return;
 
+    /* ── Activity pre-registration pass ── */
     for (int i = 0; i < program->as.program.body.count; i++) {
         ASTNode *node = program->as.program.body.items[i];
         if (node && node->type == NODE_ACTIVITY_DEF) {
@@ -1617,5 +1620,65 @@ void interpreter_run(Interpreter *interp, ASTNode *program) {
         }
     }
 
+    /* ── v1.7: Multi-page pre-scan ──
+       Count how many make-page nodes exist.  If > 1 we allocate a manifest
+       and populate it before running the program body, so every codegen_page
+       call can write a fully linked nav+sidebar on the first attempt. */
+    static PageManifest mf_storage;   /* static — avoids stack pressure */
+    int page_count = 0;
+    for (int i = 0; i < program->as.program.body.count; i++) {
+        ASTNode *n = program->as.program.body.items[i];
+        if (n && n->type == NODE_MAKE_PAGE) page_count++;
+    }
+    if (page_count > 1) {
+        codegen_collect_pages(program, &mf_storage, interp, interp->global);
+        interp->page_manifest = &mf_storage;
+    } else {
+        interp->page_manifest = NULL;
+    }
+
+    /* ── v1.7: Orphan cleanup ──
+       Snapshot the HTML files previously tracked in .epbind BEFORE we
+       generate anything.  After execution, any file that was in the old
+       snapshot but is NOT in the new manifest was removed from the EPF —
+       delete it from disk and strip it from .epbind. */
+    static char old_html[64][512];
+    int old_html_count = binding_get_html_files(interp->source_file, old_html, 64);
+
+    /* ── Full execution pass ── */
     exec_block(interp, &program->as.program.body, interp->global);
+
+    /* ── Post-generation orphan sweep ── */
+    PageManifest *mf = interp->page_manifest;
+    for (int o = 0; o < old_html_count; o++) {
+        int still_present = 0;
+        if (mf) {
+            for (int n = 0; n < mf->count; n++) {
+                if (strcmp(old_html[o], mf->pages[n].filename) == 0) {
+                    still_present = 1;
+                    break;
+                }
+            }
+        } else {
+            /* Single-page mode: check if the one generated file matches */
+            for (int i = 0; i < program->as.program.body.count; i++) {
+                ASTNode *nd = program->as.program.body.items[i];
+                if (nd && nd->type == NODE_MAKE_PAGE) {
+                    const char *fn = nd->as.make_page.filename;
+                    if (fn && strcmp(old_html[o], fn) == 0) {
+                        still_present = 1;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!still_present) {
+            if (remove(old_html[o]) == 0)
+                printf("[EPL] Removed:   %s\n", old_html[o]);
+            else
+                printf("[EPL] Note: could not delete '%s' (already gone?)\n", old_html[o]);
+            binding_remove(old_html[o]);
+        }
+    }
 }

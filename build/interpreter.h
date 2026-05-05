@@ -104,16 +104,22 @@ typedef struct {
 /* ─────────────────────────────────────────────
    Interpreter
    ───────────────────────────────────────────── */
+/* Forward declaration — PageManifest is defined in codegen.h */
+typedef struct PageManifest PageManifest;
+
 typedef struct {
     Env    *global;
     Signal  signal;
     int     had_error;
     int     call_depth;
+    const char *source_file;       /* v1.7 — source .EPF file for bindings */
+    PageManifest *page_manifest;   /* v1.7 — multi-page nav, NULL for single-page */
 } Interpreter;
 
-void   interpreter_init(Interpreter *interp);
+void interpreter_init(Interpreter *interp, const char *source_file);
 void   interpreter_free(Interpreter *interp);
 void   interpreter_run(Interpreter *interp, ASTNode *program);
+
 
 Value *eval(Interpreter *interp, ASTNode *node, Env *env);
 void   exec_node(Interpreter *interp, ASTNode *node, Env *env);

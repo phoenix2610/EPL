@@ -197,7 +197,7 @@ int main(int argc, char *argv[]) {
         /* ── EXECUTION STAGE ── */
         {
             Interpreter interp;
-            interpreter_init(&interp);
+            interpreter_init(&interp, filepath);
             interpreter_run(&interp, ast);
             interpreter_free(&interp);
         }

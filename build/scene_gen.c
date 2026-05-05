@@ -1372,16 +1372,16 @@ void scene_gen_page(Interpreter *interp, Env *env,
     fclose(html);
 
     /* Update .epbind */
-    binding_update(page_node->as.make_page.filename, "html-3d");
+    binding_update(interp->source_file, page_node->as.make_page.filename, "html-3d");
 
     snprintf(path, sizeof(path), "%s.scene.js",  base);
-    binding_update(path, "js-scene");
+    binding_update(interp->source_file, path, "js-scene");
 
     snprintf(path, sizeof(path), "%s.style.css", base);
-    binding_update(path, "css");
+    binding_update(interp->source_file, path, "css");
 
     snprintf(path, sizeof(path), "%s.data.js",   base);
-    binding_update(path, "js-data");
+    binding_update(interp->source_file, path, "js-data");
 
     printf("[EPL] Generated: %s\n",
            page_node->as.make_page.filename);

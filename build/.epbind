@@ -1,18 +1,8 @@
 {
   "outputs": [
-    { "file": "dashboard.html", "type": "html", "updated": "2026-05-03 07:28:08" },
-    { "file": "orbital.html", "type": "html-3d", "updated": "2026-05-03 22:27:40" },
-    { "file": "orbital.scene.js", "type": "js-scene", "updated": "2026-05-03 22:27:40" },
-    { "file": "orbital.style.css", "type": "css", "updated": "2026-05-03 22:27:40" },
-    { "file": "orbital.data.js", "type": "js-data", "updated": "2026-05-03 22:27:40" },
-    { "file": "nexus_omega.html", "type": "html-3d", "updated": "2026-05-03 22:56:22" },
-    { "file": "nexus_omega.scene.js", "type": "js-scene", "updated": "2026-05-03 22:56:22" },
-    { "file": "nexus_omega.style.css", "type": "css", "updated": "2026-05-03 22:56:22" },
-    { "file": "nexus_omega.data.js", "type": "js-data", "updated": "2026-05-03 22:56:22" },
-    { "file": "factory_dashboard.html", "type": "html", "updated": "2026-05-03 23:12:20" },
-    { "file": "factory_employees.html", "type": "html", "updated": "2026-05-03 23:12:20" },
-    { "file": "factory_bom.html", "type": "html", "updated": "2026-05-03 23:12:20" },
-    { "file": "factory_products.html", "type": "html", "updated": "2026-05-03 23:12:20" },
-    { "file": "factory_inventory.html", "type": "html", "updated": "2026-05-03 23:12:20" }
+    { "source": "dashboard.epf", "file": "dashboard.html", "type": "html", "updated": "2026-05-05 20:23:02" },
+    { "source": "crazy.epf", "file": "crazy_dashboard.html", "type": "html", "updated": "2026-05-05 20:23:42" },
+    { "source": "crazy.epf", "file": "crazy_employees.html", "type": "html", "updated": "2026-05-05 20:23:42" },
+    { "source": "crazy.epf", "file": "crazy_bom.html", "type": "html", "updated": "2026-05-05 20:23:42" }
   ]
 }

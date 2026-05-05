@@ -15,6 +15,7 @@
 #define MAX_PATH    512
 
 typedef struct {
+    char source[MAX_PATH];
     char file[MAX_PATH];
     char type[32];
     char updated[32];
@@ -23,20 +24,21 @@ typedef struct {
 static BindEntry entries[MAX_OUTPUTS];
 static int       entry_count = 0;
 
-/* Load existing .epbind */
 static void binding_load(void) {
     entry_count = 0;
     FILE *f = fopen(BIND_FILE, "r");
     if (!f) return;
 
-    char line[MAX_PATH + 64];
+    char line[MAX_PATH + 128];
     while (fgets(line, sizeof(line), f)) {
         if (strstr(line, "\"file\"")) {
             BindEntry e = {0};
-            /* parse "file": "x", "type": "y", "updated": "z" */
+            /* parse "source": "w", "file": "x", "type": "y", "updated": "z" */
+            char *sp = strstr(line, "\"source\": \"");
             char *fp = strstr(line, "\"file\": \"");
             char *tp = strstr(line, "\"type\": \"");
             char *up = strstr(line, "\"updated\": \"");
+            if (sp) sscanf(sp + 11, "%511[^\"]", e.source);
             if (fp) sscanf(fp + 9, "%511[^\"]", e.file);
             if (tp) sscanf(tp + 9, "%31[^\"]",  e.type);
             if (up) sscanf(up + 12, "%31[^\"]", e.updated);
@@ -55,7 +57,8 @@ static void binding_save(void) {
     fprintf(f, "{\n  \"outputs\": [\n");
     for (int i = 0; i < entry_count; i++) {
         fprintf(f,
-            "    { \"file\": \"%s\", \"type\": \"%s\", \"updated\": \"%s\" }%s\n",
+            "    { \"source\": \"%s\", \"file\": \"%s\", \"type\": \"%s\", \"updated\": \"%s\" }%s\n",
+            entries[i].source,
             entries[i].file,
             entries[i].type,
             entries[i].updated,
@@ -73,7 +76,7 @@ static void now_string(char *buf, int len) {
 }
 
 /* Add or update an output entry */
-void binding_update(const char *output_file, const char *type) {
+void binding_update(const char *source_file, const char *output_file, const char *type) {
     binding_load();
 
     char ts[32];
@@ -82,7 +85,8 @@ void binding_update(const char *output_file, const char *type) {
     /* check if already exists */
     for (int i = 0; i < entry_count; i++) {
         if (strcmp(entries[i].file, output_file) == 0) {
-            strncpy(entries[i].updated, ts, 31);
+            strncpy(entries[i].source,  source_file, MAX_PATH - 1);
+            strncpy(entries[i].updated, ts,          31);
             binding_save();
             return;
         }
@@ -90,6 +94,7 @@ void binding_update(const char *output_file, const char *type) {
 
     /* new entry */
     if (entry_count < MAX_OUTPUTS) {
+        strncpy(entries[entry_count].source,  source_file, MAX_PATH - 1);
         strncpy(entries[entry_count].file,    output_file, MAX_PATH - 1);
         strncpy(entries[entry_count].type,    type,        31);
         strncpy(entries[entry_count].updated, ts,          31);
@@ -97,6 +102,39 @@ void binding_update(const char *output_file, const char *type) {
     }
 
     binding_save();
+}
+
+/* Remove an entry from .epbind (called when a page is deleted) */
+void binding_remove(const char *output_file) {
+    binding_load();
+    int found = 0;
+    for (int i = 0; i < entry_count; i++) {
+        if (strcmp(entries[i].file, output_file) == 0) {
+            /* Shift remaining entries down */
+            for (int j = i; j < entry_count - 1; j++)
+                entries[j] = entries[j + 1];
+            entry_count--;
+            found = 1;
+            break;
+        }
+    }
+    if (found) binding_save();
+}
+
+/* Return a snapshot of all tracked HTML filenames FOR THIS SOURCE FILE.
+   Caller provides buf (array of MAX_OUTPUTS strings) and receives count. */
+int binding_get_html_files(const char *source_file, char out[][512], int max_out) {
+    binding_load();
+    int n = 0;
+    for (int i = 0; i < entry_count && n < max_out; i++) {
+        if (strcmp(entries[i].type, "html") == 0 &&
+            (!source_file || strcmp(entries[i].source, source_file) == 0)) {
+            strncpy(out[n], entries[i].file, 511);
+            out[n][511] = '\0';
+            n++;
+        }
+    }
+    return n;
 }
 
 /* List all bound outputs */

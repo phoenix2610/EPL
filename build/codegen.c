@@ -7,8 +7,8 @@
 #include "scene_gen.h"
 
 /* ─────────────────────────────────────────────
-   EPL Code Generator — codegen.c  (v1.4)
-   Generates self-contained HTML from EPF AST
+   EPL Code Generator — codegen.c  (v1.7)
+   Multi-page framework with built-in navigation
    ───────────────────────────────────────────── */
 
 
@@ -250,6 +250,126 @@ static void write_head(CodegenCtx *ctx, const char *title) {
 
 static void write_foot(CodegenCtx *ctx) {
     fprintf(ctx->out, "</div>\n</body>\n</html>\n");
+}
+
+
+/* ═════════════════════════════════════════════
+   MULTIPAGE SHELL — nav bar + sidebar
+   Written immediately after <body> when the
+   manifest contains more than one page.
+   ═════════════════════════════════════════════ */
+
+/* Icon set cycled per page index */
+static const char *page_icons[] = {
+    "&#9673;", "&#9671;", "&#9672;", "&#9670;", "&#9674;",
+    "&#9650;", "&#9660;", "&#9668;", "&#9658;", "&#9632;"
+};
+
+static void write_shell_open(CodegenCtx *ctx, PageManifest *mf) {
+    ThemeCSS *t = &ctx->theme;
+    int       ai = mf->active;   /* index of current page */
+
+    /* ── Shared shell CSS ── */
+    fprintf(ctx->out,
+        "<style id=\"epl-shell-css\">\n"
+        "  :root {\n"
+        "    --nav-h: 56px;\n"
+        "    --side-w: 220px;\n"
+        "    --shell-bg: %s;\n"
+        "    --shell-surf: %s;\n"
+        "    --shell-acc: %s;\n"
+        "    --shell-bdr: %s;\n"
+        "    --shell-txt: %s;\n"
+        "    --shell-muted: %s;\n"
+        "  }\n"
+        "  *, *::before, *::after { box-sizing: border-box; }\n"
+        "  html, body { margin: 0; padding: 0 !important; min-height: 100vh; background: var(--shell-bg); }\n"
+        "  body { display: flex; flex-direction: column; }\n"
+        /* ── Top nav ── */
+        "  #epl-nav {\n"
+        "    position: fixed; top: 0; left: 0; right: 0; height: var(--nav-h);\n"
+        "    background: var(--shell-surf); border-bottom: 1px solid var(--shell-bdr);\n"
+        "    display: flex; align-items: center; padding: 0 1.5rem; gap: 1rem;\n"
+        "    z-index: 200; backdrop-filter: blur(8px);\n"
+        "  }\n"
+        "  .epl-brand {\n"
+        "    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;\n"
+        "    font-weight: 800; font-size: 1rem; color: var(--shell-acc);\n"
+        "    letter-spacing: .04em; margin-right: auto; white-space: nowrap;\n"
+        "  }\n"
+        "  .epl-brand small { color: var(--shell-muted); font-weight: 400; font-size: .8rem; }\n"
+        "  .epl-live-badge {\n"
+        "    font-size: .7rem; letter-spacing: .06em; color: var(--shell-muted);\n"
+        "    display: flex; align-items: center; gap: .4rem;\n"
+        "  }\n"
+        "  .epl-live-dot {\n"
+        "    width: 7px; height: 7px; border-radius: 50%; background: #22d3ee;\n"
+        "    box-shadow: 0 0 6px #22d3ee; animation: epl-pulse 2s infinite;\n"
+        "  }\n"
+        "  @keyframes epl-pulse { 0%%,100%%{opacity:1} 50%%{opacity:.4} }\n"
+        /* ── Sidebar ── */
+        "  #epl-side {\n"
+        "    position: fixed; top: var(--nav-h); left: 0; bottom: 0; width: var(--side-w);\n"
+        "    background: var(--shell-surf); border-right: 1px solid var(--shell-bdr);\n"
+        "    display: flex; flex-direction: column; z-index: 100; overflow-y: auto;\n"
+        "  }\n"
+        "  .epl-side-section {\n"
+        "    padding: .9rem 1.25rem .3rem;\n"
+        "    font-size: .6rem; text-transform: uppercase; letter-spacing: .12em;\n"
+        "    color: var(--shell-muted);\n"
+        "  }\n"
+        "  .epl-nav-link {\n"
+        "    display: flex; align-items: center; gap: .65rem;\n"
+        "    padding: .58rem 1rem; margin: .1rem .6rem;\n"
+        "    border-radius: 8px; text-decoration: none;\n"
+        "    color: var(--shell-muted); font-size: .875rem;\n"
+        "    transition: background .15s, color .15s;\n"
+        "  }\n"
+        "  .epl-nav-link:hover { background: rgba(99,102,241,.1); color: var(--shell-txt); }\n"
+        "  .epl-nav-link.active { background: rgba(99,102,241,.18); color: var(--shell-acc); font-weight: 600; }\n"
+        "  .epl-nav-link i { font-style: normal; font-size: .95rem; width: 1.2rem; text-align: center; }\n"
+        /* ── Main content area ── */
+        "  #epl-main {\n"
+        "    margin-top: var(--nav-h);\n"
+        "    margin-left: var(--side-w);\n"
+        "    flex: 1; padding: 2rem;\n"
+        "  }\n"
+        "  .epl-page { max-width: none !important; }\n"
+        "</style>\n",
+        t->bg, t->surface, t->accent, t->border, t->text, t->subtext
+    );
+
+    /* ── Top nav bar ── */
+    fprintf(ctx->out,
+        "<nav id=\"epl-nav\">\n"
+        "  <div class=\"epl-brand\">%s <small>%d pages</small></div>\n"
+        "  <div class=\"epl-live-badge\"><div class=\"epl-live-dot\"></div>EPL &nbsp;&middot;&nbsp; v1.7</div>\n"
+        "</nav>\n",
+        mf->pages[ai].label,
+        mf->count
+    );
+
+    /* ── Sidebar with page links ── */
+    fprintf(ctx->out, "<aside id=\"epl-side\">\n");
+    fprintf(ctx->out, "  <div class=\"epl-side-section\">Pages</div>\n");
+    for (int i = 0; i < mf->count; i++) {
+        const char *cls = (i == ai) ? " active" : "";
+        fprintf(ctx->out,
+            "  <a href=\"%s\" class=\"epl-nav-link%s\"><i>%s</i>%s</a>\n",
+            mf->pages[i].filename,
+            cls,
+            mf->pages[i].icon,
+            mf->pages[i].label
+        );
+    }
+    fprintf(ctx->out, "</aside>\n");
+
+    /* ── Main content wrapper ── */
+    fprintf(ctx->out, "<div id=\"epl-main\">\n");
+}
+
+static void write_shell_close(CodegenCtx *ctx) {
+    fprintf(ctx->out, "</div>\n");   /* close #epl-main */
 }
 
 
@@ -575,9 +695,78 @@ void codegen_node(CodegenCtx *ctx, ASTNode *node) {
 }
 
 /* ═════════════════════════════════════════════
-   PAGE ENTRY POINT
+   COLLECT PAGES — pre-scan (v1.7)
+   Walk program AST, find every NODE_MAKE_PAGE
+   and record filename + first heading text.
+   Called BEFORE execution begins.
    ═════════════════════════════════════════════ */
-void codegen_page(Interpreter *interp, Env *env, ASTNode *node) {
+void codegen_collect_pages(ASTNode *program, PageManifest *manifest,
+                           Interpreter *interp, Env *env) {
+    if (!program || !manifest) return;
+    manifest->count  = 0;
+    manifest->active = 0;
+
+    NodeList *body = &program->as.program.body;
+    for (int i = 0; i < body->count && manifest->count < EPL_MAX_PAGES; i++) {
+        ASTNode *node = body->items[i];
+        if (!node || node->type != NODE_MAKE_PAGE) continue;
+
+        /* Skip canvas3d pages — they don't use the nav shell */
+        int has3d = 0;
+        for (int j = 0; j < node->as.make_page.children.count; j++) {
+            ASTNode *c = node->as.make_page.children.items[j];
+            if (c && c->type == NODE_CANVAS3D) { has3d = 1; break; }
+        }
+        if (has3d) continue;
+
+        PageEntry *pe = &manifest->pages[manifest->count];
+
+        /* Filename */
+        const char *fn = node->as.make_page.filename;
+        if (!fn || fn[0] == '\0') fn = "output.html";
+        strncpy(pe->filename, fn, 255);
+        pe->filename[255] = '\0';
+
+        /* Label — use first heading, fall back to filename stem */
+        pe->label[0] = '\0';
+        for (int j = 0; j < node->as.make_page.children.count; j++) {
+            ASTNode *c = node->as.make_page.children.items[j];
+            if (c && c->type == NODE_HEADING_OUT && c->as.text_out.value) {
+                /* Evaluate the heading expression now, using the env as-is.
+                   Variables may not all be set yet, but string literals work fine. */
+                Value *v = eval(interp, c->as.text_out.value, env);
+                if (v && v->type == VAL_STRING) {
+                    strncpy(pe->label, v->as.string, 255);
+                    pe->label[255] = '\0';
+                }
+                val_free(v);
+                break;
+            }
+        }
+        if (pe->label[0] == '\0') {
+            /* Fall back to filename without path/extension */
+            const char *base = strrchr(fn, '/') ? strrchr(fn, '/') + 1 :
+                               (strrchr(fn, '\\') ? strrchr(fn, '\\') + 1 : fn);
+            strncpy(pe->label, base, 255);
+            char *dot = strrchr(pe->label, '.');
+            if (dot) *dot = '\0';
+        }
+
+        /* Icon — cycle through the preset set */
+        strncpy(pe->icon,
+            page_icons[manifest->count % 10],
+            sizeof(pe->icon) - 1);
+
+        manifest->count++;
+    }
+}
+
+
+/* ═════════════════════════════════════════════
+   PAGE ENTRY POINT  (v1.7)
+   ═════════════════════════════════════════════ */
+void codegen_page(Interpreter *interp, Env *env, ASTNode *node,
+                  PageManifest *manifest) {
     const char *filename = node->as.make_page.filename;
     if (!filename || strlen(filename) == 0) filename = "output.html";
 
@@ -587,6 +776,17 @@ void codegen_page(Interpreter *interp, Env *env, ASTNode *node) {
         if (child && child->type == NODE_CANVAS3D) {
             scene_gen_page(interp, env, node);
             return;
+        }
+    }
+
+    /* Find which manifest slot this page occupies */
+    int multi = (manifest && manifest->count > 1);
+    if (multi) {
+        for (int i = 0; i < manifest->count; i++) {
+            if (strcmp(manifest->pages[i].filename, filename) == 0) {
+                manifest->active = i;
+                break;
+            }
         }
     }
 
@@ -604,6 +804,7 @@ void codegen_page(Interpreter *interp, Env *env, ASTNode *node) {
                                         node->as.make_page.color);
     ctx.chart_count = 0;
     ctx.indent      = 1;
+    ctx.manifest    = manifest;
 
     /* Use first heading as page title, or filename */
     char title[256] = "EPL Page";
@@ -618,16 +819,30 @@ void codegen_page(Interpreter *interp, Env *env, ASTNode *node) {
         }
     }
 
+    /* Update manifest label with the live-evaluated title */
+    if (multi) {
+        strncpy(manifest->pages[manifest->active].label, title, 255);
+    }
+
     write_head(&ctx, title);
+
+    /* ── Multi-page shell: nav + sidebar ── */
+    if (multi) {
+        write_shell_open(&ctx, manifest);
+    }
 
     for (int i = 0; i < node->as.make_page.children.count; i++)
         codegen_node(&ctx, node->as.make_page.children.items[i]);
+
+    if (multi) {
+        write_shell_close(&ctx);
+    }
 
     write_foot(&ctx);
     fclose(out);
 
     /* Update .epbind */
-    binding_update(filename, "html");
+    binding_update(interp->source_file, filename, "html");
 
     printf("[EPL] Generated: %s\n", filename);
 }
