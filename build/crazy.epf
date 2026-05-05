@@ -1,206 +1,181 @@
-describe dashboard as "VulcanTech Manufacturing Suite | EPL v1.6 — Multi-Page"
+describe dashboard as "Next-Gen IIoT Analytics Platform | Pitch Prototype v2.0"
 
-### VULCANTECH MANUFACTURING SYSTEM
-  One EPF source — five isolated HTML modules.
-  Theme: dark | Zone: Industrial-7 | Shift: Alpha
+### APEX INDUSTRIAL SYSTEMS - PITCH DECK DASHBOARD
+  Theme: dark | Zone: Global Operations | Purpose: Pitch Demo
 ###
 
-# ── Workforce ────────────────────────────────────────────────────
-set headcount    as 148
-set onshift      as 94
-set onleave      as 12
-set absent       as 8
-set trainees     as 34
-set productive   as onshift minus trainees
-set efficiency   as productive divided by headcount
+# ── Global Metrics ───────────────────────────────────────────────────
+set global_uptime  as 99.98
+set active_nodes   as 2048
+set anomalies      as 3
+set energy_eff     as 84.5
+set latency        as 12
 
-# ── Orders ───────────────────────────────────────────────────────
-set orders       as 87
-set orderdone    as 64
-set orderactive  as 18
-set orderdelayed as 5
-set fillrate     as orderdone divided by orders
+# ── Factory Outputs ──────────────────────────────────────────────────
+set fac_names    as ["Berlin Gigafactory", "Tokyo Plant", "Nevada Hub", "Shanghai Sector 4"]
+set fac_output   as [4200, 3850, 5100, 6200]
+set fac_targets  as [4000, 4000, 5000, 6000]
 
-# ── Products ─────────────────────────────────────────────────────
-set prodcount    as 6
-set activeprod   as 4
-set retiredprod  as 2
+# ── Logistics & Fleet ────────────────────────────────────────────────
+set fleet_total  as 340
+set fleet_active as 312
+set fleet_maint  as 28
+set fleet_eff    as fleet_active divided by fleet_total
+set deliveries   as 12040
 
-# ── Inventory ────────────────────────────────────────────────────
-set rawstock     as 2840
-set wip          as 612
-set finished     as 1490
-set lowstock     as 3
-set totalstock   as rawstock plus wip plus finished
+# ── Predictive Maintenance ───────────────────────────────────────────
+set risk_assets  as 14
+set mtbf         as 8640
+set mttr         as 42
+set health       as 98.4
 
-# ── BOM ──────────────────────────────────────────────────────────
-set bomcount     as 24
-set bomapproved  as 19
-set bompen       as 5
-
-# ── List Data ────────────────────────────────────────────────────
-set departments as ["Production", "Quality", "Logistics", "Assembly", "R&D", "Maintenance"]
-set deptsizes   as [38, 22, 19, 41, 16, 12]
-set depteff     as [88, 91, 76, 84, 79, 95]
-
-set prodnames   as ["Turbine A7", "Gear X3", "Shaft K1", "Valve V5", "Coupling C2", "Filter F8"]
-set prodout     as [1240, 980, 640, 820, 310, 180]
-set prodtarget  as [1200, 1000, 700, 800, 350, 200]
-
-set materials   as ["Steel 304", "Aluminium 6061", "Copper 12G", "Polymer A", "Carbon T3"]
-set matstock    as [840, 620, 310, 180, 95]
-set matusage    as [120, 85, 42, 30, 18]
-
-# ── Computed ─────────────────────────────────────────────────────
-set avg dept    as average of deptsizes
-set avg eff     as average of depteff
-set top eff     as maximum of depteff
-set total prod  as total of prodout
-set avg stock   as average of matstock
-set min stock   as minimum of matstock
-
-to assess output
-    if efficiency is greater than 0.7 then
-        return "HIGH OUTPUT"
-    !
-    if efficiency is greater than 0.5 then
-        return "MODERATE"
-    !
-    return "LOW OUTPUT"
-!
-
-set outputlevel by assess output
-
-to check reorder
-    if lowstock is greater than 2 then
-        return "REORDER REQUIRED"
-    !
-    return "STOCK HEALTHY"
-!
-
-set invstatus by check reorder
+# ── Financials ───────────────────────────────────────────────────────
+set rev_q1       as 14.2
+set rev_q2       as 18.5
+set rev_q3       as 21.1
+set rev_q4       as 24.8
+set quarters     as ["Q1", "Q2", "Q3", "Q4"]
+set rev_trend    as [14.2, 18.5, 21.1, 24.8]
+set margins      as [12.1, 14.5, 16.8, 19.2]
 
 # ═════════════════════════════════════════════════════════════════
-#   PAGE 1 — MAIN DASHBOARD
+#   PAGE 1 — GLOBAL HUB (3D NEXUS)
 # ═════════════════════════════════════════════════════════════════
 
-make page saved as "crazy_dashboard.html" styled as "dark"
+make page saved as "pitch_hub.html" styled as "dark"
 
-    heading "Rand Industries"
-    subheading "Manufacturing Operations Dashboard — Shift Alpha"
-    paragraph "Live operational overview across all zones. Data reflects current shift state."
+    canvas3d "APEX GLOBAL HUB" background "deep-space"
+        core star color "cyan" labeled "Central Neural Core"
+
+        # Ring 1 - Edge Computing Nodes
+        orbital ring radius 60 color "blue" speed 0.015
+            node at 0.0 labeled "Edge Server Alpha" status "completed"
+            node at 2.0 labeled "Edge Server Beta"  status "completed"
+            node at 4.0 labeled "Edge Server Gamma" status "completed"
+        !
+
+        # Ring 2 - Global Gigafactories
+        orbital ring radius 120 color "gold" speed 0.008
+            node at 0.5 labeled "Berlin Gigafactory" status "completed"
+            node at 2.5 labeled "Tokyo Plant"        status "inprogress"
+            node at 4.5 labeled "Nevada Hub"         status "completed"
+            node at 6.0 labeled "Shanghai Sector 4"  status "completed"
+        !
+
+        # Ring 3 - Satellite Uplinks
+        orbital ring radius 180 color "purple" speed 0.003
+            node at 1.0 labeled "Uplink SAT-1" status "completed"
+            node at 3.0 labeled "Uplink SAT-2" status "inprogress"
+            node at 5.0 labeled "Uplink SAT-3" status "pending"
+        !
+
+        # Ring 4 - Anomaly Detection Grid
+        orbital ring radius 250 color "red" speed 0.001
+            node at 1.5 labeled "Sector 7 Intrusion" status "inprogress"
+            node at 4.5 labeled "Thermal Spike P3"   status "pending"
+        !
+    !
+
+    panel "right"
+        heading "Global Network Overview"
+        subheading "Live telemetry from 2048 active nodes."
+        
+        make stat "Global Uptime" from global_uptime rounded to 2
+        make stat "Active Nodes"  from active_nodes
+        make stat "Active Anomalies" from anomalies
+        make stat "Network Latency"  from latency
+        make stat "Energy Efficiency" from energy_eff rounded to 1
+    !
+
+!
+
+# ═════════════════════════════════════════════════════════════════
+#   PAGE 2 — PRODUCTION ANALYTICS
+# ═════════════════════════════════════════════════════════════════
+
+make page saved as "pitch_production.html" styled as "dark"
+
+    heading "Production Analytics"
+    subheading "Live Throughput & Output vs Target Metrics"
+    paragraph "Global manufacturing telemetry aggregated via secure edge nodes."
     divider
 
-    section "Workforce Snapshot"
+    section "Throughput Snapshot"
         row
-            make stat "Headcount"    from headcount
-            make stat "On Shift"     from onshift
-            make stat "Productive"   from productive
-            make stat "Trainees"     from trainees
-            make stat "Efficiency"   from efficiency rounded to 2
-            make stat "Output Level" from outputlevel
+            make stat "Total Global Output" from 19350
+            make stat "Target Adherence"    from 1.018 rounded to 2
+            make stat "Global Uptime %"     from global_uptime
+            make stat "Anomalies Detected"  from anomalies
         !
     !
 
-    section "Order Pipeline"
-        row
-            make stat "Total Orders"   from orders
-            make stat "Completed"      from orderdone
-            make stat "Active"         from orderactive
-            make stat "Delayed"        from orderdelayed
-            make stat "Fill Rate"      from fillrate rounded to 2
-        !
-        make bar chart for x axis as departments and y axis as deptsizes titled "Headcount by Department"
+    section "Factory Performance Metrics"
+        make bar chart for x axis as fac_names and y axis as fac_output titled "Actual Production Volume"
+        make line chart for x axis as fac_names and y axis as fac_targets titled "Production Targets"
     !
 
-    section "Inventory Pulse"
-        row
-            make stat "Raw Stock"   from rawstock
-            make stat "WIP"         from wip
-            make stat "Finished"    from finished
-            make stat "Total"       from totalstock
-            make stat "Inv Status"  from invstatus
-        !
+    section "Detailed Factory Directory"
+        make table from fac_names titled "Facility Information"
+        make report from fac_output titled "Current Output (Units)"
     !
 
 !
 
 # ═════════════════════════════════════════════════════════════════
-#   PAGE 2 — EMPLOYEE MANAGEMENT SYSTEM
+#   PAGE 3 — LOGISTICS & FLEET
 # ═════════════════════════════════════════════════════════════════
 
-make page saved as "crazy_employees.html" styled as "dark"
+make page saved as "pitch_logistics.html" styled as "dark"
 
-    heading "Employee Management System"
-    subheading "Workforce Allocation — Industrial Zone 7"
-    paragraph "Real-time workforce breakdown across all shift categories and departments."
+    heading "Global Supply Chain & Logistics"
+    subheading "Autonomous Fleet Tracking & Delivery Metrics"
+    paragraph "Real-time routing and maintenance tracking for autonomous logistics."
     divider
 
-    section "Shift Status"
+    section "Fleet Overview"
         row
-            make stat "Total Headcount" from headcount
-            make stat "On Shift"        from onshift
-            make stat "On Leave"        from onleave
-            make stat "Absent"          from absent
-            make stat "Trainees"        from trainees
-            make stat "Productive"      from productive
+            make stat "Total Vehicles"  from fleet_total
+            make stat "Active Fleet"    from fleet_active
+            make stat "In Maintenance"  from fleet_maint
+            make stat "Fleet Readiness" from fleet_eff rounded to 2
+            make stat "Completed Deliveries" from deliveries
         !
     !
 
-    section "Performance Metrics"
+    section "Predictive Maintenance"
         row
-            make stat "Avg Dept Size"  from avg dept
-            make stat "Avg Efficiency" from avg eff
-            make stat "Top Efficiency" from top eff
-            make stat "Efficiency"     from efficiency rounded to 2
+            make stat "Assets at Risk"  from risk_assets
+            make stat "MTBF (Hours)"    from mtbf
+            make stat "MTTR (Hours)"    from mttr
+            make stat "Overall Health"  from health rounded to 1
         !
-        make bar chart for x axis as departments and y axis as depteff titled "Efficiency % by Department"
-    !
-
-    section "Department Directory"
-        make table from departments titled "All Departments"
-        make report from deptsizes titled "Department Size Report"
     !
 
 !
 
 # ═════════════════════════════════════════════════════════════════
-#   PAGE 3 — BILL OF MATERIALS
+#   PAGE 4 — FINANCIALS & FORECASTS
 # ═════════════════════════════════════════════════════════════════
 
-make page saved as "crazy_bom.html" styled as "dark"
+make page saved as "pitch_financials.html" styled as "dark"
 
-    heading "Bill of Materials"
-    subheading "Approved Material Registry — VulcanTech Industries"
-    paragraph "Complete BOM ledger with approval status, stock levels, and daily consumption rates."
+    heading "Executive Financial Summary"
+    subheading "Quarterly Revenue & Margin Trajectory"
+    paragraph "Financial performance overlaid with operational efficiency savings."
     divider
 
-    section "BOM Registry"
+    section "Quarterly Snapshot (in Millions)"
         row
-            make stat "Total BOMs"  from bomcount
-            make stat "Approved"    from bomapproved
-            make stat "Pending"     from bompen
-            make stat "Approval %"  from bomapproved divided by bomcount rounded to 2
+            make stat "Q1 Revenue" from rev_q1 rounded to 1
+            make stat "Q2 Revenue" from rev_q2 rounded to 1
+            make stat "Q3 Revenue" from rev_q3 rounded to 1
+            make stat "Q4 Revenue" from rev_q4 rounded to 1
         !
     !
 
-    section "Material Stock"
-        row
-            make stat "Avg Stock"   from avg stock rounded to 0
-            make stat "Min Stock"   from min stock
-            make stat "Low SKUs"    from lowstock
-            make stat "Inv Status"  from invstatus
-        !
-        make bar chart for x axis as materials and y axis as matstock titled "Stock Level per Material"
-    !
-
-    section "Material Directory"
-        make table  from materials titled "Raw Material List"
-        make report from matstock   titled "Stock Level Statistics"
-        make report from matusage   titled "Daily Consumption Statistics"
+    section "Revenue & Margin Trajectory"
+        make line chart for x axis as quarters and y axis as rev_trend titled "Gross Revenue Trend ($M)"
+        make bar chart for x axis as quarters and y axis as margins titled "Operating Margin (%)"
     !
 
 !
-
-# ═════════════════════════════════════════════════════════════════
-
