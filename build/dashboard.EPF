@@ -15,14 +15,13 @@ set avg score as average of scores
 set top score as maximum of scores
 set pass count as length of passed
 
-make page saved as "dashboard.html" styled as "persian blue"
+make page saved as "dashboards.html" styled as "solo leveling"
 
-    heading "Grade Dashboard"
-    subheading "Term 2 — Academic Year 2026"
+    heading "Solo Leveling Grade Dashboard"
     paragraph "This dashboard summarizes student performance and revenue trends."
     divider
 
-    section "Key Metrics"
+    section "Key Metrics"   
         row
             make stat "Average Score" from avg score
             make stat "Top Score" from top score

@@ -242,6 +242,36 @@ ASTNode *parse_statement(Parser *p) {
         case TOKEN_MAKE_STAT:   return parse_make_stat(p);
         case TOKEN_SECTION_OUT: return parse_section(p);
         case TOKEN_ROW:         return parse_row(p);
+        case TOKEN_DIV_KW:
+        case TOKEN_SPAN_KW:
+        case TOKEN_BUTTON_KW:
+        case TOKEN_INPUT_KW:    return parse_html_element(p);
+        case TOKEN_IMAGE_KW:    return parse_gallery_image(p);
+        /* v2.0 EPF Components */
+        case TOKEN_USE_DESIGN:      return parse_use_design(p);
+        case TOKEN_MAKE_NAVBAR:     return parse_make_navbar(p);
+        case TOKEN_MAKE_HERO:       return parse_make_hero(p);
+        case TOKEN_CONTENT_SECTION: return parse_content_section(p);
+        case TOKEN_MAKE_GALLERY:    return parse_make_gallery(p);
+        case TOKEN_MAKE_FORM:       return parse_make_form(p);
+        case TOKEN_MAKE_MODAL:      return parse_make_modal(p);
+        case TOKEN_MAKE_FOOTER:     return parse_make_footer(p);
+        case TOKEN_OVERLAY_CARD:    return parse_overlay_card(p);
+        case TOKEN_LEFT_COL:        return parse_column(p, 0);
+        case TOKEN_RIGHT_COL:       return parse_column(p, 1);
+        case TOKEN_ITEM_LIST_KW:    return parse_item_list(p);
+        case TOKEN_FEATURE_IMAGE:   return parse_feature_image(p);
+        case TOKEN_PRICE_BADGE:     return parse_price_badge(p);
+        case TOKEN_EYEBROW:         return parse_eyebrow(p);
+        case TOKEN_NAV_LINK:        return parse_nav_link(p);
+        case TOKEN_ACTION_BTN:      return parse_action_btn(p);
+        case TOKEN_GUEST_PICKER:    return parse_guest_picker(p);
+        case TOKEN_DATE_PICKER:     return parse_date_picker(p);
+        case TOKEN_ENTRY:
+        case TOKEN_ENTRY_KW:        return parse_list_entry(p);
+        case TOKEN_SUBMIT_BTN:      return parse_submit_btn(p);
+        case TOKEN_DISMISS_BTN:     return parse_dismiss_btn(p);
+        case TOKEN_FIELD:           return parse_form_field(p);
         case TOKEN_BREAK: {
             ASTNode *n = ast_make_node(NODE_BREAK, t.line, t.col);
             advance(p);
@@ -2011,3 +2041,632 @@ ASTNode *parse_list_literal(Parser *p) {
     expect(p, TOKEN_RBRACKET, "Expected ']' to close list");
     return node;
 }
+
+/* ═════════════════════════════════════════════
+   HTML DOM ELEMENT PARSER (v1.7)
+   Handles:
+     div id "main" class "container"
+         ...
+     !
+     image src "test.png" class "logo"
+   ═════════════════════════════════════════════ */
+ASTNode *parse_html_element(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_HTML_ELEMENT, t.line, t.col);
+    
+    strncpy(node->as.html_element.tag, t.value, MAX_TOKEN_LEN - 1);
+    node->as.html_element.id_attr[0] = '\0';
+    node->as.html_element.class_attr[0] = '\0';
+    node->as.html_element.src_attr[0] = '\0';
+    node->as.html_element.type_attr[0] = '\0';
+    node->as.html_element.onclick_attr[0] = '\0';
+    node->as.html_element.placeholder_attr[0] = '\0';
+    node->as.html_element.value_attr[0] = '\0';
+    node->as.html_element.text_content = NULL;
+    nodelist_init(&node->as.html_element.children);
+    node->as.html_element.is_self_closing = 0;
+    
+    if (t.type == TOKEN_IMAGE_KW || t.type == TOKEN_INPUT_KW) {
+        node->as.html_element.is_self_closing = 1;
+    }
+
+    /* Parse optional attributes */
+    while (!check(p, TOKEN_TERMINATOR) && !check(p, TOKEN_EOF) && !check(p, TOKEN_NEWLINE)) {
+        if (match(p, TOKEN_ID_KW)) {
+            Token str = expect(p, TOKEN_STRING, "Expected string after 'id'");
+            strncpy(node->as.html_element.id_attr, str.value, MAX_TOKEN_LEN - 1);
+        } else if (match(p, TOKEN_CLASS_KW)) {
+            Token str = expect(p, TOKEN_STRING, "Expected string after 'class'");
+            strncpy(node->as.html_element.class_attr, str.value, MAX_TOKEN_LEN - 1);
+        } else if (match(p, TOKEN_SRC_KW)) {
+            Token str = expect(p, TOKEN_STRING, "Expected string after 'src'");
+            strncpy(node->as.html_element.src_attr, str.value, MAX_TOKEN_LEN - 1);
+        } else if (match(p, TOKEN_TYPE_KW)) {
+            Token str = expect(p, TOKEN_STRING, "Expected string after 'type'");
+            strncpy(node->as.html_element.type_attr, str.value, MAX_TOKEN_LEN - 1);
+        } else if (match(p, TOKEN_ONCLICK_KW)) {
+            Token str = expect(p, TOKEN_STRING, "Expected string after 'onclick'");
+            strncpy(node->as.html_element.onclick_attr, str.value, MAX_TOKEN_LEN - 1);
+        } else if (match(p, TOKEN_PLACEHOLDER_KW)) {
+            Token str = expect(p, TOKEN_STRING, "Expected string after 'placeholder'");
+            strncpy(node->as.html_element.placeholder_attr, str.value, MAX_TOKEN_LEN - 1);
+        } else if (match(p, TOKEN_VALUE_KW)) {
+            Token str = expect(p, TOKEN_STRING, "Expected string after 'value'");
+            strncpy(node->as.html_element.value_attr, str.value, MAX_TOKEN_LEN - 1);
+        } else if (check(p, TOKEN_STRING) || check(p, TOKEN_IDENTIFIER) || check(p, TOKEN_NUMBER)) {
+            /* Inner text content expressed as expression inline */
+            node->as.html_element.text_content = parse_expression(p);
+        } else {
+            break; /* unknown token, let loop or block parser handle */
+        }
+    }
+
+    if (!node->as.html_element.is_self_closing) {
+        parse_block(p, &node->as.html_element.children);
+    } else {
+        skip_newlines(p);
+        match(p, TOKEN_TERMINATOR); /* optional terminator */
+    }
+    
+    return node;
+}
+
+/* ═══════════════════════════════════════════
+   EPF v2.0 COMPONENT PARSERS
+   ═══════════════════════════════════════════ */
+
+/* use design system "name"
+     primary color "X"
+     secondary color "X"
+     background "X"
+     fonts headline "X" body "X"
+     icons "X"
+   ! */
+ASTNode *parse_use_design(Parser *p) {
+    Token t = advance(p); /* consume TOKEN_USE_DESIGN */
+    ASTNode *node = ast_make_node(NODE_USE_DESIGN, t.line, t.col);
+    node->as.use_design.name[0] = '\0';
+    node->as.use_design.primary[0] = '\0';
+    node->as.use_design.secondary[0] = '\0';
+    node->as.use_design.background[0] = '\0';
+    node->as.use_design.headline_font[0] = '\0';
+    node->as.use_design.body_font[0] = '\0';
+    node->as.use_design.icon_set[0] = '\0';
+
+    if (check(p, TOKEN_STRING))
+        strncpy(node->as.use_design.name, advance(p).value, MAX_TOKEN_LEN-1);
+
+    skip_newlines(p);
+    while (!check(p, TOKEN_TERMINATOR) && !check(p, TOKEN_EOF)) {
+        skip_newlines(p);
+        if (check(p, TOKEN_TERMINATOR) || check(p, TOKEN_EOF)) break;
+        if (current(p).type == TOKEN_WITH_COLOR) { /* "color" */
+            advance(p);
+            Token val = expect(p, TOKEN_STRING, "Expected color string");
+            /* figure out which color by checking previous word */
+            if (strlen(node->as.use_design.primary) == 0)
+                strncpy(node->as.use_design.primary, val.value, MAX_TOKEN_LEN-1);
+            else
+                strncpy(node->as.use_design.secondary, val.value, MAX_TOKEN_LEN-1);
+        } else if (current(p).type == TOKEN_BACKGROUND_KW) {
+            advance(p);
+            Token val = expect(p, TOKEN_STRING, "Expected background color");
+            strncpy(node->as.use_design.background, val.value, MAX_TOKEN_LEN-1);
+        } else if (strcmp(current(p).value, "fonts") == 0 || strcmp(current(p).value, "headline") == 0) {
+            advance(p); /* "fonts" or "headline" */
+            match(p, TOKEN_HEADING_OUT); /* "headline" if already consumed */
+            if (check(p, TOKEN_STRING))
+                strncpy(node->as.use_design.headline_font, advance(p).value, MAX_TOKEN_LEN-1);
+            match(p, TOKEN_MAKE_REPORT); /* skip "body" keyword if present */
+            if (check(p, TOKEN_STRING))
+                strncpy(node->as.use_design.body_font, advance(p).value, MAX_TOKEN_LEN-1);
+        } else if (current(p).type == TOKEN_ICONS_KW) {
+            advance(p);
+            if (check(p, TOKEN_STRING))
+                strncpy(node->as.use_design.icon_set, advance(p).value, MAX_TOKEN_LEN-1);
+        } else {
+            advance(p); /* skip unknown modifiers */
+        }
+        skip_newlines(p);
+    }
+    match(p, TOKEN_TERMINATOR);
+    return node;
+}
+
+/* make navbar branded as "X" styled as "Y"
+     nav link "label" at "href"
+     action button "label" on click open modal "id"
+   ! */
+ASTNode *parse_make_navbar(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_MAKE_NAVBAR, t.line, t.col);
+    node->as.make_navbar.brand[0] = '\0';
+    node->as.make_navbar.style[0] = '\0';
+    nodelist_init(&node->as.make_navbar.children);
+
+    match(p, TOKEN_BRANDED); match(p, TOKEN_AS);
+    if (check(p, TOKEN_STRING))
+        strncpy(node->as.make_navbar.brand, advance(p).value, MAX_TOKEN_LEN-1);
+    match(p, TOKEN_STYLED); match(p, TOKEN_AS);
+    if (check(p, TOKEN_STRING))
+        strncpy(node->as.make_navbar.style, advance(p).value, MAX_TOKEN_LEN-1);
+
+    parse_block(p, &node->as.make_navbar.children);
+    return node;
+}
+
+/* nav link "label" at "href" */
+ASTNode *parse_nav_link(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_NAV_LINK, t.line, t.col);
+    node->as.nav_link.label[0] = '\0';
+    node->as.nav_link.href[0] = '\0';
+    if (check(p, TOKEN_STRING))
+        strncpy(node->as.nav_link.label, advance(p).value, MAX_TOKEN_LEN-1);
+    match(p, TOKEN_AT_KW);
+    if (check(p, TOKEN_STRING))
+        strncpy(node->as.nav_link.href, advance(p).value, MAX_TOKEN_LEN-1);
+    return node;
+}
+
+/* action button "label" on click open modal "id" */
+ASTNode *parse_action_btn(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_ACTION_BTN, t.line, t.col);
+    node->as.action_btn.label[0] = '\0';
+    node->as.action_btn.modal_id[0] = '\0';
+    if (check(p, TOKEN_STRING))
+        strncpy(node->as.action_btn.label, advance(p).value, MAX_TOKEN_LEN-1);
+    if (check(p, TOKEN_ON_CLICK)) {
+        advance(p);
+        if (check(p, TOKEN_OPEN_MODAL)) {
+            advance(p);
+            if (check(p, TOKEN_STRING))
+                strncpy(node->as.action_btn.modal_id, advance(p).value, MAX_TOKEN_LEN-1);
+        }
+    }
+    return node;
+}
+
+/* make hero titled "X" accented "Y" subtitled "Z"
+     background image "url" dimmed to N
+     overlay card "title" ... !
+   ! */
+ASTNode *parse_make_hero(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_MAKE_HERO, t.line, t.col);
+    node->as.make_hero.title[0] = '\0';
+    node->as.make_hero.accented[0] = '\0';
+    node->as.make_hero.subtitle[0] = '\0';
+    node->as.make_hero.bg_image[0] = '\0';
+    node->as.make_hero.bg_dim = 40;
+    node->as.make_hero.overlay_card = NULL;
+
+    match(p, TOKEN_TITLED);
+    if (check(p, TOKEN_STRING))
+        strncpy(node->as.make_hero.title, advance(p).value, MAX_TOKEN_LEN-1);
+    if (check(p, TOKEN_ACCENTED)) {
+        advance(p);
+        if (check(p, TOKEN_STRING))
+            strncpy(node->as.make_hero.accented, advance(p).value, MAX_TOKEN_LEN-1);
+    }
+    if (check(p, TOKEN_SUBHEADING)) {
+        advance(p);
+        if (check(p, TOKEN_STRING))
+            strncpy(node->as.make_hero.subtitle, advance(p).value, MAX_TOKEN_LEN-1);
+    }
+
+    skip_newlines(p);
+    while (!check(p, TOKEN_TERMINATOR) && !check(p, TOKEN_EOF)) {
+        skip_newlines(p);
+        if (check(p, TOKEN_TERMINATOR) || check(p, TOKEN_EOF)) break;
+        if (check(p, TOKEN_BACKGROUND_KW)) {
+            advance(p); /* "background" */
+            advance(p); /* "image" */
+            if (check(p, TOKEN_STRING))
+                strncpy(node->as.make_hero.bg_image, advance(p).value, MAX_TOKEN_LEN-1);
+            if (check(p, TOKEN_DIMMED)) {
+                advance(p); match(p, TOKEN_TO);
+                if (check(p, TOKEN_NUMBER))
+                    node->as.make_hero.bg_dim = (int)atof(advance(p).value);
+            }
+        } else if (check(p, TOKEN_OVERLAY_CARD)) {
+            node->as.make_hero.overlay_card = parse_overlay_card(p);
+        } else {
+            advance(p);
+        }
+        skip_newlines(p);
+    }
+    match(p, TOKEN_TERMINATOR);
+    return node;
+}
+
+/* overlay card "title" ... ! */
+ASTNode *parse_overlay_card(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_OVERLAY_CARD, t.line, t.col);
+    node->as.overlay_card.title[0] = '\0';
+    nodelist_init(&node->as.overlay_card.children);
+    if (check(p, TOKEN_STRING))
+        strncpy(node->as.overlay_card.title, advance(p).value, MAX_TOKEN_LEN-1);
+    parse_block(p, &node->as.overlay_card.children);
+    return node;
+}
+
+/* guest picker default N */
+ASTNode *parse_guest_picker(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_GUEST_PICKER, t.line, t.col);
+    node->as.guest_picker.default_count = 2;
+    /* consume optional "default" */
+    if (strcmp(current(p).value, "default") == 0) advance(p);
+    if (check(p, TOKEN_NUMBER))
+        node->as.guest_picker.default_count = (int)atof(advance(p).value);
+    return node;
+}
+
+/* date picker label "X" */
+ASTNode *parse_date_picker(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_DATE_PICKER, t.line, t.col);
+    node->as.date_picker.label[0] = '\0';
+    match(p, TOKEN_LABEL_OUT);
+    if (check(p, TOKEN_STRING))
+        strncpy(node->as.date_picker.label, advance(p).value, MAX_TOKEN_LEN-1);
+    return node;
+}
+
+/* make content section id "X"
+     left column ... !
+     right column ... !
+   ! */
+ASTNode *parse_content_section(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_CONTENT_SECTION, t.line, t.col);
+    node->as.content_section.id[0] = '\0';
+    node->as.content_section.left_col = NULL;
+    node->as.content_section.right_col = NULL;
+
+    match(p, TOKEN_ID_KW);
+    if (check(p, TOKEN_STRING))
+        strncpy(node->as.content_section.id, advance(p).value, MAX_TOKEN_LEN-1);
+
+    skip_newlines(p);
+    while (!check(p, TOKEN_TERMINATOR) && !check(p, TOKEN_EOF)) {
+        skip_newlines(p);
+        if (check(p, TOKEN_TERMINATOR) || check(p, TOKEN_EOF)) break;
+        if (check(p, TOKEN_LEFT_COL))
+            node->as.content_section.left_col = parse_column(p, 0);
+        else if (check(p, TOKEN_RIGHT_COL))
+            node->as.content_section.right_col = parse_column(p, 1);
+        else
+            advance(p);
+        skip_newlines(p);
+    }
+    match(p, TOKEN_TERMINATOR);
+    return node;
+}
+
+/* left column / right column ... ! */
+ASTNode *parse_column(Parser *p, int is_right) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_COLUMN, t.line, t.col);
+    node->as.column.is_right = is_right;
+    nodelist_init(&node->as.column.children);
+    parse_block(p, &node->as.column.children);
+    return node;
+}
+
+/* eyebrow "text" */
+ASTNode *parse_eyebrow(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_EYEBROW, t.line, t.col);
+    node->as.eyebrow.text[0] = '\0';
+    if (check(p, TOKEN_STRING))
+        strncpy(node->as.eyebrow.text, advance(p).value, MAX_TOKEN_LEN-1);
+    return node;
+}
+
+/* item list
+     entry "label" numbered N detail "x" [offset]
+     ...
+   ! */
+ASTNode *parse_item_list(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_ITEM_LIST, t.line, t.col);
+    nodelist_init(&node->as.item_list.entries);
+    parse_block(p, &node->as.item_list.entries);
+    return node;
+}
+
+/* entry "label" numbered N detail "desc" [offset] */
+ASTNode *parse_list_entry(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_LIST_ENTRY, t.line, t.col);
+    node->as.list_entry.label[0] = '\0';
+    node->as.list_entry.number = 0;
+    node->as.list_entry.detail[0] = '\0';
+    node->as.list_entry.offset = 0;
+
+    if (check(p, TOKEN_STRING))
+        strncpy(node->as.list_entry.label, advance(p).value, MAX_TOKEN_LEN-1);
+    if (check(p, TOKEN_NUMBERED)) {
+        advance(p);
+        if (check(p, TOKEN_NUMBER))
+            node->as.list_entry.number = (int)atof(advance(p).value);
+    }
+    if (check(p, TOKEN_DETAIL_KW)) {
+        advance(p);
+        if (check(p, TOKEN_STRING))
+            strncpy(node->as.list_entry.detail, advance(p).value, MAX_TOKEN_LEN-1);
+    }
+    if (check(p, TOKEN_OFFSET))
+        { advance(p); node->as.list_entry.offset = 1; }
+    return node;
+}
+
+/* feature image "src" aspect "4/5" hover "reveal color" */
+ASTNode *parse_feature_image(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_FEATURE_IMAGE, t.line, t.col);
+    node->as.feature_image.src[0] = '\0';
+    node->as.feature_image.aspect[0] = '\0';
+    node->as.feature_image.hover_mode[0] = '\0';
+
+    if (check(p, TOKEN_STRING))
+        strncpy(node->as.feature_image.src, advance(p).value, MAX_TOKEN_LEN-1);
+    if (check(p, TOKEN_ASPECT)) {
+        advance(p);
+        if (check(p, TOKEN_STRING))
+            strncpy(node->as.feature_image.aspect, advance(p).value, MAX_TOKEN_LEN-1);
+    }
+    /* consume "hover" keyword then string */
+    if (strcmp(current(p).value, "hover") == 0) {
+        advance(p);
+        if (check(p, TOKEN_STRING))
+            strncpy(node->as.feature_image.hover_mode, advance(p).value, MAX_TOKEN_LEN-1);
+    }
+    return node;
+}
+
+/* price badge "$285" label "per guest" */
+ASTNode *parse_price_badge(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_PRICE_BADGE, t.line, t.col);
+    node->as.price_badge.price[0] = '\0';
+    node->as.price_badge.label[0] = '\0';
+    if (check(p, TOKEN_STRING))
+        strncpy(node->as.price_badge.price, advance(p).value, MAX_TOKEN_LEN-1);
+    match(p, TOKEN_LABEL_OUT);
+    if (check(p, TOKEN_STRING))
+        strncpy(node->as.price_badge.label, advance(p).value, MAX_TOKEN_LEN-1);
+    return node;
+}
+
+/* make gallery titled "X" subtitled "Y" columns N
+     image "url" [offset top N]
+     ...
+   ! */
+ASTNode *parse_make_gallery(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_MAKE_GALLERY, t.line, t.col);
+    node->as.make_gallery.title[0] = '\0';
+    node->as.make_gallery.subtitle[0] = '\0';
+    node->as.make_gallery.columns = 4;
+    nodelist_init(&node->as.make_gallery.images);
+
+    match(p, TOKEN_TITLED);
+    if (check(p, TOKEN_STRING))
+        strncpy(node->as.make_gallery.title, advance(p).value, MAX_TOKEN_LEN-1);
+    if (check(p, TOKEN_SUBHEADING)) {
+        advance(p);
+        if (check(p, TOKEN_STRING))
+            strncpy(node->as.make_gallery.subtitle, advance(p).value, MAX_TOKEN_LEN-1);
+    }
+    if (check(p, TOKEN_COLUMNS)) {
+        advance(p);
+        if (check(p, TOKEN_NUMBER))
+            node->as.make_gallery.columns = (int)atof(advance(p).value);
+    }
+    parse_block(p, &node->as.make_gallery.images);
+    return node;
+}
+
+/* image "url" [offset top N] — used inside gallery blocks */
+ASTNode *parse_gallery_image(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_GALLERY_IMAGE, t.line, t.col);
+    node->as.gallery_image.src[0] = '\0';
+    node->as.gallery_image.offset_top = 0;
+    if (check(p, TOKEN_STRING))
+        strncpy(node->as.gallery_image.src, advance(p).value, MAX_TOKEN_LEN-1);
+    if (check(p, TOKEN_OFFSET)) {
+        advance(p); /* "offset" */
+        /* consume optional "top" */
+        if (strcmp(current(p).value, "top") == 0) advance(p);
+        if (check(p, TOKEN_NUMBER))
+            node->as.gallery_image.offset_top = (int)atof(advance(p).value);
+    }
+    return node;
+}
+
+/* make form "title" eyebrow "subtitle"
+     field text "label" placeholder "x"
+     field email "label" placeholder "x"
+     field textarea "label" placeholder "x"
+     submit button "label" on click open modal "id"
+   ! */
+ASTNode *parse_make_form(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_MAKE_FORM, t.line, t.col);
+    node->as.make_form.title[0] = '\0';
+    node->as.make_form.eyebrow[0] = '\0';
+    nodelist_init(&node->as.make_form.children);
+
+    if (check(p, TOKEN_STRING))
+        strncpy(node->as.make_form.title, advance(p).value, MAX_TOKEN_LEN-1);
+    if (check(p, TOKEN_EYEBROW)) {
+        advance(p);
+        if (check(p, TOKEN_STRING))
+            strncpy(node->as.make_form.eyebrow, advance(p).value, MAX_TOKEN_LEN-1);
+    }
+    parse_block(p, &node->as.make_form.children);
+    return node;
+}
+
+/* field text "Full Name" placeholder "Mr. Julian Thorne" */
+ASTNode *parse_form_field(Parser *p) {
+    Token t = advance(p); /* "field" */
+    ASTNode *node = ast_make_node(NODE_FORM_FIELD, t.line, t.col);
+    node->as.form_field.field_type[0] = '\0';
+    node->as.form_field.field_label[0] = '\0';
+    node->as.form_field.placeholder[0] = '\0';
+    /* next token is the type: text, email, textarea */
+    if (!check(p, TOKEN_EOF) && !check(p, TOKEN_NEWLINE))
+        strncpy(node->as.form_field.field_type, advance(p).value, MAX_TOKEN_LEN-1);
+    if (check(p, TOKEN_STRING))
+        strncpy(node->as.form_field.field_label, advance(p).value, MAX_TOKEN_LEN-1);
+    if (check(p, TOKEN_PLACEHOLDER_KW) || check(p, TOKEN_PLACEHOLDER_EPF)) {
+        advance(p);
+        if (check(p, TOKEN_STRING))
+            strncpy(node->as.form_field.placeholder, advance(p).value, MAX_TOKEN_LEN-1);
+    }
+    return node;
+}
+
+/* submit button "label" on click open modal "id" */
+ASTNode *parse_submit_btn(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_SUBMIT_BTN, t.line, t.col);
+    node->as.submit_btn.label[0] = '\0';
+    node->as.submit_btn.modal_id[0] = '\0';
+    if (check(p, TOKEN_STRING))
+        strncpy(node->as.submit_btn.label, advance(p).value, MAX_TOKEN_LEN-1);
+    if (check(p, TOKEN_ON_CLICK)) {
+        advance(p);
+        if (check(p, TOKEN_OPEN_MODAL)) {
+            advance(p);
+            if (check(p, TOKEN_STRING))
+                strncpy(node->as.submit_btn.modal_id, advance(p).value, MAX_TOKEN_LEN-1);
+        }
+    }
+    return node;
+}
+
+/* make modal id "booking" icon "check_circle" color "primary"
+     heading "Sanctuary Secured"
+     paragraph "Your reservation..."
+     dismiss button "Return to Oasis"
+   ! */
+ASTNode *parse_make_modal(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_MAKE_MODAL, t.line, t.col);
+    node->as.make_modal.modal_id[0] = '\0';
+    node->as.make_modal.icon[0] = '\0';
+    node->as.make_modal.color[0] = '\0';
+    node->as.make_modal.heading[0] = '\0';
+    node->as.make_modal.body_text[0] = '\0';
+    node->as.make_modal.dismiss_label[0] = '\0';
+
+    match(p, TOKEN_ID_KW);
+    if (check(p, TOKEN_STRING))
+        strncpy(node->as.make_modal.modal_id, advance(p).value, MAX_TOKEN_LEN-1);
+    if (strcmp(current(p).value, "icon") == 0) {
+        advance(p);
+        if (check(p, TOKEN_STRING))
+            strncpy(node->as.make_modal.icon, advance(p).value, MAX_TOKEN_LEN-1);
+    }
+    if (check(p, TOKEN_WITH_COLOR)) {
+        advance(p);
+        if (check(p, TOKEN_STRING))
+            strncpy(node->as.make_modal.color, advance(p).value, MAX_TOKEN_LEN-1);
+    }
+
+    skip_newlines(p);
+    while (!check(p, TOKEN_TERMINATOR) && !check(p, TOKEN_EOF)) {
+        skip_newlines(p);
+        if (check(p, TOKEN_TERMINATOR) || check(p, TOKEN_EOF)) break;
+        if (check(p, TOKEN_HEADING_OUT)) {
+            advance(p);
+            if (check(p, TOKEN_STRING))
+                strncpy(node->as.make_modal.heading, advance(p).value, MAX_TOKEN_LEN-1);
+        } else if (check(p, TOKEN_PARAGRAPH)) {
+            advance(p);
+            if (check(p, TOKEN_STRING))
+                strncpy(node->as.make_modal.body_text, advance(p).value, MAX_TOKEN_LEN-1);
+        } else if (check(p, TOKEN_DISMISS_BTN)) {
+            advance(p);
+            if (check(p, TOKEN_STRING))
+                strncpy(node->as.make_modal.dismiss_label, advance(p).value, MAX_TOKEN_LEN-1);
+        } else {
+            advance(p);
+        }
+        skip_newlines(p);
+    }
+    match(p, TOKEN_TERMINATOR);
+    return node;
+}
+
+/* dismiss button "label" */
+ASTNode *parse_dismiss_btn(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_DISMISS_BTN, t.line, t.col);
+    node->as.make_modal.dismiss_label[0] = '\0';
+    if (check(p, TOKEN_STRING))
+        strncpy(node->as.make_modal.dismiss_label, advance(p).value, MAX_TOKEN_LEN-1);
+    return node;
+}
+
+/* make footer branded as "Green Desert"
+     tagline "..."
+     contact heading "Visit Us"
+     address "2424 Obsidian..."
+     copyright "2024 Green Desert"
+   ! */
+ASTNode *parse_make_footer(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_MAKE_FOOTER, t.line, t.col);
+    node->as.make_footer.brand[0] = '\0';
+    node->as.make_footer.tagline[0] = '\0';
+    node->as.make_footer.contact_heading[0] = '\0';
+    node->as.make_footer.address[0] = '\0';
+    node->as.make_footer.copyright[0] = '\0';
+
+    match(p, TOKEN_BRANDED); match(p, TOKEN_AS);
+    if (check(p, TOKEN_STRING))
+        strncpy(node->as.make_footer.brand, advance(p).value, MAX_TOKEN_LEN-1);
+
+    skip_newlines(p);
+    while (!check(p, TOKEN_TERMINATOR) && !check(p, TOKEN_EOF)) {
+        skip_newlines(p);
+        if (check(p, TOKEN_TERMINATOR) || check(p, TOKEN_EOF)) break;
+        if (check(p, TOKEN_TAGLINE)) {
+            advance(p);
+            if (check(p, TOKEN_STRING))
+                strncpy(node->as.make_footer.tagline, advance(p).value, MAX_TOKEN_LEN-1);
+        } else if (strcmp(current(p).value, "contact") == 0) {
+            advance(p);
+            match(p, TOKEN_HEADING_OUT);
+            if (check(p, TOKEN_STRING))
+                strncpy(node->as.make_footer.contact_heading, advance(p).value, MAX_TOKEN_LEN-1);
+        } else if (check(p, TOKEN_ADDRESS_KW)) {
+            advance(p);
+            if (check(p, TOKEN_STRING))
+                strncpy(node->as.make_footer.address, advance(p).value, MAX_TOKEN_LEN-1);
+        } else if (check(p, TOKEN_COPYRIGHT)) {
+            advance(p);
+            if (check(p, TOKEN_STRING))
+                strncpy(node->as.make_footer.copyright, advance(p).value, MAX_TOKEN_LEN-1);
+        } else {
+            advance(p);
+        }
+        skip_newlines(p);
+    }
+    match(p, TOKEN_TERMINATOR);
+    return node;
+}
+
+/* parse_field — dispatched when TOKEN_FIELD is seen inside a form block */
+/* Note: parse_statement default case won't hit TOKEN_FIELD, so the form block
+   parser calls parse_form_field directly when it encounters it. Added here for
+   completeness so the linker resolves the symbol. */

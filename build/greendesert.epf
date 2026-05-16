@@ -1,0 +1,72 @@
+make page saved as "greendesert.html" styled as "dark"
+
+    use design system "Oasis"
+        color "#a3f69b"
+        color "#e9c349"
+        background "#131313"
+        headline "Noto Serif"
+        report "Inter"
+        icons "Material Symbols Outlined"
+    !
+    
+    make navbar branded as "Green Desert" styled as "transparent"
+        nav link "Journal" at "#"
+        nav link "Atmosphere" at "#"
+        nav link "Provenance" at "#"
+        action button "Reserve" on click open modal "booking"
+    !
+    
+    make hero titled "A Nocturnal" accented "Odyssey" subheading "The desert blooms at midnight"
+        background image "https://images.unsplash.com/photo-1542382156909-9ae37b3f56fd?q=80&w=2574&auto=format&fit=crop" dimmed to 40
+        overlay card "Secure Your Sanctuary"
+            guest picker default 2
+            date picker label "Select Evening"
+            action button "Check Availability" on click open modal "booking"
+        !
+    !
+    
+    content section id "narrative"
+        left column
+            eyebrow "Current Narrative"
+            heading "The Seasonal <br/> Monologue"
+            paragraph "Our tasting menu is a quiet conversation between the arid earth and the morning dew. Each course is a single word in a story that spans millennia."
+            item list
+                entry "Root & Ember" numbered 1 detail "Charred yucca, desert honey, white smoke."
+                entry "Veridian Silence" numbered 2 detail "Cactus pear, mountain herb, obsidian salt." offset
+                entry "The Oasis Crown" numbered 3 detail "Braised succulents, wild blossoms, gold leaf."
+            !
+        !
+        right column
+            feature image "https://images.unsplash.com/photo-1414609245224-afa02bfb3fda?q=80&w=2489&auto=format&fit=crop" aspect "4/5" hover "reveal color"
+            price badge "285" label "per guest"
+        !
+    !
+    
+    make gallery titled "The Oasis" subheading "Where time dissolves into shadow" columns 4
+        image "https://images.unsplash.com/photo-1509316785289-025f5b846b35?q=80&w=2676&auto=format&fit=crop"
+        image "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=2621&auto=format&fit=crop" offset top 24
+        image "https://images.unsplash.com/photo-1481016570479-9eab6349fde7?q=80&w=2574&auto=format&fit=crop"
+        image "https://images.unsplash.com/photo-1485600375005-0e1ceaa968cd?q=80&w=2574&auto=format&fit=crop" offset top 24
+    !
+        
+    make form "Claim Your Table" eyebrow "Availability is Limited"
+        field text "Full Name" placeholder "Mr. Julian Thorne"
+        field email "Email Address" placeholder "ethereal@oasis.com"
+        field textarea "Dietary Allegiances" placeholder "Tell us what you seek..."
+        submit button "Finalize Request" on click open modal "booking"
+    !
+        
+    make footer branded as "Green Desert"
+        tagline "An ethereal oasis where gastronomy meets the soul of the desert."
+        address "2424 Obsidian Way<br/>Nevada Desert, NV 89001"
+        contact heading "Visit Us"
+        copyright "2024 Green Desert."
+    !
+        
+    make modal id "booking" icon "check_circle" color "primary"
+        heading "Sanctuary Secured"
+        paragraph "Your reservation has been confirmed. We await your arrival."
+        dismiss button "Return to Oasis"
+    !
+
+!

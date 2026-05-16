@@ -102,12 +102,21 @@ ThemeCSS codegen_get_theme(EPFTheme theme, const char *custom_color) {
                The color becomes accent + subtext; bg/surface/border stay neutral. */
             static char acc[64];
             strncpy(acc, resolve_color_name(custom_color), 63);
-            t.bg      = "#f8fafc";
-            t.surface = "#ffffff";
-            t.text    = "#0f172a";
-            t.subtext = acc;
-            t.accent  = acc;
-            t.border  = "#e2e8f0";
+            if (strcmp(custom_color, "solo leveling") == 0) {
+                t.bg      = "#0b0914";
+                t.surface = "#130f23";
+                t.text    = "#fdf4ff";
+                t.subtext = "#c026d3";
+                t.accent  = "#f472b6";
+                t.border  = "#9333ea";
+            } else {
+                t.bg      = "#f8fafc";
+                t.surface = "#ffffff";
+                t.text    = "#0f172a";
+                t.subtext = acc;
+                t.accent  = acc;
+                t.border  = "#e2e8f0";
+            }
             break;
         }
         default: /* THEME_LIGHT */
@@ -129,6 +138,15 @@ ThemeCSS codegen_get_theme(EPFTheme theme, const char *custom_color) {
     t.chart_colors[3] = "#f59e0b";
     t.chart_colors[4] = "#3b82f6";
     t.chart_colors[5] = "#8b5cf6";
+
+    if (custom_color && strcmp(custom_color, "solo leveling") == 0) {
+        t.chart_colors[0] = "#f472b6";
+        t.chart_colors[1] = "#c026d3";
+        t.chart_colors[2] = "#e879f9";
+        t.chart_colors[3] = "#d946ef";
+        t.chart_colors[4] = "#9333ea";
+        t.chart_colors[5] = "#a855f7";
+    }
     return t;
 }
 
@@ -164,12 +182,27 @@ static void write_js_array(CodegenCtx *ctx, Value *list) {
     fprintf(ctx->out, "]");
 }
 
+/* Helper to inject external files like css/base.css into the HTML */
+static void inject_file_content(CodegenCtx *ctx, const char *path) {
+    FILE *f = fopen(path, "r");
+    if (!f) {
+        /* Silently ignore if file missing, or could print a warning */
+        return;
+    }
+    char buf[1024];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), f)) > 0) {
+        fwrite(buf, 1, n, ctx->out);
+    }
+    fclose(f);
+}
+
+
 
 /* ═════════════════════════════════════════════
    HTML HEAD — embedded CSS + Chart.js CDN
    ═════════════════════════════════════════════ */
-static void write_head(CodegenCtx *ctx, const char *title) {
-    ThemeCSS *t = &ctx->theme;
+static void write_head(CodegenCtx *ctx, const char *title, const char *custom_color) {
     fprintf(ctx->out,
         "<!DOCTYPE html>\n"
         "<html lang=\"en\">\n"
@@ -178,97 +211,42 @@ static void write_head(CodegenCtx *ctx, const char *title) {
         "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
         "  <title>%s</title>\n"
         "  <script src=\"https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js\"></script>\n"
-        "  <link href=\"https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap\" rel=\"stylesheet\">\n"
-        "  <style>\n"
-        "    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }\n"
-        "    body {\n"
-        "      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;\n"
-        "      background: linear-gradient(135deg, %s 0%%, #111827 100%%);\n"
-        "      background-attachment: fixed;\n"
-        "      color: %s;\n"
-        "      line-height: 1.6;\n"
-        "      padding: 2rem;\n"
-        "    }\n"
-        "    .epl-page { max-width: 1200px; margin: 0 auto; animation: fadeIn 0.6s ease-out; }\n"
-        "    @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }\n"
-        "    h1 { font-size: 2.5rem; font-weight: 700; color: %s; margin-bottom: 0.25rem; letter-spacing: -0.02em; }\n"
-        "    h2 { font-size: 1.35rem; font-weight: 300; color: %s; margin-bottom: 2rem; opacity: 0.9; }\n"
-        "    h3 { font-size: 1.15rem; font-weight: 600; color: %s; margin-bottom: 1.2rem; letter-spacing: 0.01em; }\n"
-        "    h4 { font-size: 0.9rem; font-weight: 600; color: %s; margin-bottom: 0.5rem; }\n"
-        "    p  { color: %s; margin-bottom: 1rem; font-weight: 300; }\n"
-        "    strong { font-weight: 700; color: %s; }\n"
-        "    hr { border: none; height: 1px; background: linear-gradient(90deg, transparent, %s, transparent); margin: 2rem 0; opacity: 0.5; }\n"
-        "    .epl-spacer { height: 1.5rem; }\n"
-        "    .epl-section {\n"
-        "      background: rgba(255, 255, 255, 0.03);\n"
-        "      border: 1px solid rgba(255, 255, 255, 0.08);\n"
-        "      backdrop-filter: blur(12px);\n"
-        "      -webkit-backdrop-filter: blur(12px);\n"
-        "      border-radius: 16px;\n"
-        "      padding: 2rem;\n"
-        "      margin-bottom: 2rem;\n"
-        "      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);\n"
-        "      transition: transform 0.3s ease, box-shadow 0.3s ease;\n"
-        "    }\n"
-        "    .epl-section:hover {\n"
-        "      transform: translateY(-2px);\n"
-        "      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);\n"
-        "    }\n"
-        "    .epl-row {\n"
-        "      display: grid;\n"
-        "      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));\n"
-        "      gap: 1.5rem;\n"
-        "      margin-bottom: 1.5rem;\n"
-        "    }\n"
-        "    .epl-stat {\n"
-        "      background: linear-gradient(145deg, rgba(255, 255, 255, 0.05) 0%%, rgba(255, 255, 255, 0.01) 100%%);\n"
-        "      border: 1px solid rgba(255, 255, 255, 0.05);\n"
-        "      border-radius: 14px;\n"
-        "      padding: 1.5rem;\n"
-        "      text-align: center;\n"
-        "      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);\n"
-        "      position: relative;\n"
-        "      overflow: hidden;\n"
-        "    }\n"
-        "    .epl-stat::after {\n"
-        "      content: ''; position: absolute; top: 0; left: -100%%; width: 50%%; height: 100%%;\n"
-        "      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);\n"
-        "      transform: skewX(-20deg); transition: 0.5s;\n"
-        "    }\n"
-        "    .epl-stat:hover::after { left: 150%%; }\n"
-        "    .epl-stat:hover { transform: translateY(-5px); border-color: %s; box-shadow: 0 10px 20px rgba(0,0,0,0.2); }\n"
-        "    .epl-stat-label { font-size: 0.75rem; color: %s; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem; font-weight: 600; }\n"
-        "    .epl-stat-value { font-size: 2.25rem; font-weight: 700; color: %s; background: linear-gradient(to right, #fff, %s); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }\n"
-        "    .epl-chart-wrap { margin-bottom: 2rem; }\n"
-        "    .epl-chart-title { font-size: 0.9rem; font-weight: 600; color: %s; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }\n"
-        "    canvas { max-height: 350px; width: 100%% !important; }\n"
-        "    table { width: 100%%; border-collapse: separate; border-spacing: 0; margin-bottom: 1.5rem; font-size: 0.95rem; border-radius: 12px; overflow: hidden; }\n"
-        "    th { background: rgba(0,0,0,0.4); color: %s; padding: 1rem 1.2rem; text-align: left; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }\n"
-        "    td { padding: 1rem 1.2rem; border-bottom: 1px solid rgba(255,255,255,0.05); color: %s; background: rgba(0,0,0,0.15); transition: background 0.2s; }\n"
-        "    tr:last-child td { border-bottom: none; }\n"
-        "    tr:hover td { background: rgba(255,255,255,0.05); }\n"
-        "    .epl-report { font-size: 0.95rem; color: %s; }\n"
-        "    .epl-report-row { display: flex; justify-content: space-between; padding: 0.7rem 0; border-bottom: 1px dashed rgba(255,255,255,0.1); transition: color 0.2s; }\n"
-        "    .epl-report-row:hover { color: #fff; }\n"
-        "    .epl-report-row:last-child { border-bottom: none; }\n"
+        "  <style>\n",
+        title
+    );
+    inject_file_content(ctx, "css/epl_base.css");
+    
+    if (custom_color && strcmp(custom_color, "solo leveling") == 0) {
+        fprintf(ctx->out, "  body, .epl-page { background: #0b0914 !important; color: #e2d8f0; }\n");
+        fprintf(ctx->out, "  .nav { background: rgba(11, 9, 20, 0.85) !important; border-bottom: 1px solid rgba(192, 38, 211, 0.3) !important; }\n");
+        fprintf(ctx->out, "  .epl-section { background: #130f23 !important; border: 1px solid #9333ea !important; border-radius: 16px !important; box-shadow: 0 0 30px rgba(147, 51, 234, 0.15), inset 0 0 20px rgba(147, 51, 234, 0.05) !important; }\n");
+        fprintf(ctx->out, "  .epl-stat { background: #1a1432 !important; border: 1px solid #c026d3 !important; border-radius: 12px; margin: 0.5rem; box-shadow: 0 0 20px rgba(192, 38, 211, 0.2) !important; }\n");
+        fprintf(ctx->out, "  .epl-stat-value { color: #f472b6 !important; text-shadow: 0 0 20px rgba(244, 114, 182, 0.8) !important; }\n");
+        fprintf(ctx->out, "  .epl-chart-wrap { background: #130f23 !important; border: 1px solid #c026d3 !important; border-radius: 16px !important; box-shadow: 0 0 40px rgba(192, 38, 211, 0.25) !important; }\n");
+        fprintf(ctx->out, "  canvas { filter: drop-shadow(0px 0px 8px rgba(244, 114, 182, 0.8)); }\n");
+        fprintf(ctx->out, "  h1, h2, h3, h4 { color: #fdf4ff !important; text-shadow: 0 0 15px rgba(192, 38, 211, 0.6) !important; font-weight: 800 !important; letter-spacing: 0.05em; }\n");
+        fprintf(ctx->out, "  hr { background: linear-gradient(90deg, transparent, rgba(192, 38, 211, 0.8), transparent) !important; opacity: 1 !important; }\n");
+        fprintf(ctx->out, "  table { border-radius: 12px; overflow: hidden; box-shadow: 0 0 20px rgba(192, 38, 211, 0.15); }\n");
+        fprintf(ctx->out, "  table th { background: #271441 !important; border-bottom: 2px solid #c026d3 !important; color: #f472b6 !important; text-shadow: 0 0 10px rgba(244, 114, 182, 0.5); }\n");
+        fprintf(ctx->out, "  table td { background: #1a1432 !important; border-bottom: 1px solid rgba(192, 38, 211, 0.2) !important; }\n");
+        fprintf(ctx->out, "  .epl-report-row:hover { color: #f472b6 !important; text-shadow: 0 0 10px rgba(244, 114, 182, 0.5); }\n");
+    }
+
+    fprintf(ctx->out,
         "  </style>\n"
         "</head>\n"
         "<body>\n"
-        "<div class=\"epl-page\">\n",
-        title,
-        t->bg, t->text,
-        t->text, t->subtext, t->text, t->subtext,
-        t->subtext, t->text,
-        t->border,
-        t->accent, t->subtext, t->text, t->accent,
-        t->subtext,
-        t->text, t->text,
-        t->text
+        "<!-- Custom Cursor -->\n"
+        "<div class=\"cursor\" id=\"cur\"></div>\n"
+        "<div class=\"cursor-ring\" id=\"ring\"></div>\n"
+        "<div class=\"epl-page\">\n"
     );
 }
 
 static void write_foot(CodegenCtx *ctx) {
-    fprintf(ctx->out, "</div>\n</body>\n</html>\n");
+    fprintf(ctx->out, "</div>\n<script>\n");
+    inject_file_content(ctx, "js/app.js");
+    fprintf(ctx->out, "\n</script>\n</body>\n</html>\n");
 }
 
 
@@ -285,121 +263,50 @@ static const char *page_icons[] = {
 };
 
 static void write_shell_open(CodegenCtx *ctx, PageManifest *mf) {
-    ThemeCSS *t = &ctx->theme;
-    int       ai = mf->active;   /* index of current page */
-
-    /* ── Shared shell CSS ── */
+    /* ── Top nav bar with links ── */
     fprintf(ctx->out,
-        "<style id=\"epl-shell-css\">\n"
-        "  :root {\n"
-        "    --nav-h: 56px;\n"
-        "    --side-w: 220px;\n"
-        "    --shell-bg: %s;\n"
-        "    --shell-surf: %s;\n"
-        "    --shell-acc: %s;\n"
-        "    --shell-bdr: %s;\n"
-        "    --shell-txt: %s;\n"
-        "    --shell-muted: %s;\n"
-        "  }\n"
-        "  *, *::before, *::after { box-sizing: border-box; }\n"
-        "  html, body { margin: 0; padding: 0 !important; min-height: 100vh; background: var(--shell-bg); }\n"
-        "  body { display: flex; flex-direction: column; }\n"
-        /* ── Top nav ── */
-        "  #epl-nav {\n"
-        "    position: fixed; top: 0; left: 0; right: 0; height: var(--nav-h);\n"
-        "    background: rgba(15, 23, 42, 0.75); border-bottom: 1px solid rgba(255,255,255,0.05);\n"
-        "    display: flex; align-items: center; padding: 0 2rem; gap: 1.5rem;\n"
-        "    z-index: 200; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);\n"
-        "    box-shadow: 0 4px 20px rgba(0,0,0,0.1);\n"
-        "  }\n"
-        "  .epl-brand {\n"
-        "    font-family: 'Inter', sans-serif;\n"
-        "    font-weight: 800; font-size: 1.1rem; color: #fff;\n"
-        "    letter-spacing: .05em; margin-right: auto; white-space: nowrap;\n"
-        "    text-transform: uppercase;\n"
-        "  }\n"
-        "  .epl-brand span { color: var(--shell-acc); }\n"
-        "  .epl-brand small { color: var(--shell-muted); font-weight: 400; font-size: .75rem; margin-left: 10px; text-transform: none; }\n"
-        "  .epl-live-badge {\n"
-        "    font-size: .75rem; font-weight: 600; letter-spacing: .08em; color: var(--shell-muted);\n"
-        "    display: flex; align-items: center; gap: .5rem;\n"
-        "    background: rgba(255,255,255,0.05); padding: 0.4rem 1rem; border-radius: 20px;\n"
-        "  }\n"
-        "  .epl-live-dot {\n"
-        "    width: 8px; height: 8px; border-radius: 50%; background: #22d3ee;\n"
-        "    box-shadow: 0 0 10px #22d3ee; animation: epl-pulse 2s infinite;\n"
-        "  }\n"
-        "  @keyframes epl-pulse { 0%%,100%%{opacity:1; transform:scale(1)} 50%%{opacity:.5; transform:scale(0.8)} }\n"
-        /* ── Sidebar ── */
-        "  #epl-side {\n"
-        "    position: fixed; top: var(--nav-h); left: 0; bottom: 0; width: var(--side-w);\n"
-        "    background: rgba(15, 23, 42, 0.4); border-right: 1px solid rgba(255,255,255,0.05);\n"
-        "    display: flex; flex-direction: column; z-index: 100; overflow-y: auto;\n"
-        "    backdrop-filter: blur(16px); padding-top: 1rem;\n"
-        "  }\n"
-        "  .epl-side-section {\n"
-        "    padding: 1rem 1.5rem 0.5rem;\n"
-        "    font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .15em;\n"
-        "    color: var(--shell-muted); opacity: 0.7;\n"
-        "  }\n"
-        "  .epl-nav-link {\n"
-        "    display: flex; align-items: center; gap: .75rem;\n"
-        "    padding: .75rem 1.25rem; margin: .2rem .75rem;\n"
-        "    border-radius: 10px; text-decoration: none;\n"
-        "    color: var(--shell-muted); font-size: .9rem; font-weight: 500;\n"
-        "    transition: all .2s cubic-bezier(0.2, 0.8, 0.2, 1);\n"
-        "    position: relative;\n"
-        "    overflow: hidden;\n"
-        "  }\n"
-        "  .epl-nav-link::before {\n"
-        "    content: ''; position: absolute; left: 0; top: 0; height: 100%%; width: 3px;\n"
-        "    background: var(--shell-acc); transform: scaleY(0); transition: transform 0.2s; transform-origin: left;\n"
-        "  }\n"
-        "  .epl-nav-link:hover { background: rgba(255,255,255,0.05); color: #fff; transform: translateX(4px); }\n"
-        "  .epl-nav-link.active { background: linear-gradient(90deg, rgba(99,102,241,0.15) 0%%, transparent 100%%); color: #fff; font-weight: 600; }\n"
-        "  .epl-nav-link.active::before { transform: scaleY(1); }\n"
-        "  .epl-nav-link i { font-style: normal; font-size: .95rem; width: 1.2rem; text-align: center; }\n"
-        /* ── Main content area ── */
-        "  #epl-main {\n"
-        "    margin-top: var(--nav-h);\n"
-        "    margin-left: var(--side-w);\n"
-        "    flex: 1; padding: 2rem;\n"
-        "  }\n"
-        "  .epl-page { max-width: none !important; }\n"
-        "</style>\n",
-        t->bg, t->surface, t->accent, t->border, t->text, t->subtext
+        "<style>\n"
+        "  .nav { position: fixed; top: 0; width: 100%%; z-index: 1000; padding: 1.5rem 3rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(5,5,8,0.85); backdrop-filter: blur(20px); transition: padding 0.3s ease; }\n"
+        "  .nav.scrolled { padding: 1rem 3rem; }\n"
+        "  .nav-logo { display: flex; align-items: center; gap: 10px; font-size: 1.1rem; font-weight: 800; letter-spacing: 0.15em; color: #fff; text-decoration: none; }\n"
+        "  .logo-img { height: 32px; width: auto; }\n"
+        "  .nav-links { display: flex; gap: 2.5rem; align-items: center; }\n"
+        "  .nav-links a { color: rgba(255,255,255,0.5); text-decoration: none; font-size: 0.85rem; letter-spacing: 0.08em; transition: color 0.2s; }\n"
+        "  .nav-links a:hover, .nav-links a.active { color: #fff; }\n"
+        "  .nav-cta { background: #fff; color: #000; padding: 0.6rem 1.5rem; border-radius: 2px; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.06em; text-decoration: none; transition: all 0.2s; }\n"
+        "  .nav-cta:hover { background: #c8ff00; color: #000; }\n"
+        "  .epl-main { padding-top: 80px; }\n"
+        "</style>\n"
+        "<nav class=\"nav\" id=\"main-nav\">\n"
+        "  <a class=\"nav-logo\" href=\"index.html\">\n"
+        "    <img src=\"../documentation/EPL_logo.png\" alt=\"EPL\" class=\"logo-img\">\n"
+        "    EPL\n"
+        "  </a>\n"
+        "  <div class=\"nav-links\">\n"
     );
 
-    /* ── Top nav bar ── */
-    fprintf(ctx->out,
-        "<nav id=\"epl-nav\">\n"
-        "  <div class=\"epl-brand\"><span>APEX</span>SYS <small>%d Modules Active</small></div>\n"
-        "  <div class=\"epl-live-badge\"><div class=\"epl-live-dot\"></div>LIVE SECURE</div>\n"
-        "</nav>\n",
-        mf->count
-    );
-
-    /* ── Sidebar with page links ── */
-    fprintf(ctx->out, "<aside id=\"epl-side\">\n");
-    fprintf(ctx->out, "  <div class=\"epl-side-section\">Pages</div>\n");
+    int ai = mf->active;
     for (int i = 0; i < mf->count; i++) {
         const char *cls = (i == ai) ? " active" : "";
+        /* Optionally skip signup.html from normal links if it's the CTA */
+        if (strcmp(mf->pages[i].filename, "signup.html") == 0) continue;
+        
         fprintf(ctx->out,
-            "  <a href=\"%s\" class=\"epl-nav-link%s\"><i>%s</i>%s</a>\n",
-            mf->pages[i].filename,
-            cls,
-            mf->pages[i].icon,
-            mf->pages[i].label
+            "    <a href=\"%s\" class=\"%s\">%s</a>\n",
+            mf->pages[i].filename, cls, mf->pages[i].label
         );
     }
-    fprintf(ctx->out, "</aside>\n");
 
-    /* ── Main content wrapper ── */
-    fprintf(ctx->out, "<div id=\"epl-main\">\n");
+    fprintf(ctx->out,
+        "  </div>\n"
+        "  <a class=\"nav-cta\" href=\"signup.html\">Early Access</a>\n"
+        "</nav>\n"
+        "<div class=\"epl-main\">\n"
+    );
 }
 
 static void write_shell_close(CodegenCtx *ctx) {
-    fprintf(ctx->out, "</div>\n");   /* close #epl-main */
+    fprintf(ctx->out, "</div>\n");   /* close epl-main */
 }
 
 
@@ -688,6 +595,461 @@ static void gen_row(CodegenCtx *ctx, ASTNode *node) {
 }
 
 
+static void gen_html_element(CodegenCtx *ctx, ASTNode *node) {
+    indent(ctx);
+    fprintf(ctx->out, "<%s", node->as.html_element.tag);
+    
+    if (strlen(node->as.html_element.id_attr) > 0)
+        fprintf(ctx->out, " id=\"%s\"", node->as.html_element.id_attr);
+    if (strlen(node->as.html_element.class_attr) > 0)
+        fprintf(ctx->out, " class=\"%s\"", node->as.html_element.class_attr);
+    if (strlen(node->as.html_element.src_attr) > 0)
+        fprintf(ctx->out, " src=\"%s\"", node->as.html_element.src_attr);
+    if (strlen(node->as.html_element.type_attr) > 0)
+        fprintf(ctx->out, " type=\"%s\"", node->as.html_element.type_attr);
+    if (strlen(node->as.html_element.onclick_attr) > 0)
+        fprintf(ctx->out, " onclick=\"%s\"", node->as.html_element.onclick_attr);
+    if (strlen(node->as.html_element.placeholder_attr) > 0)
+        fprintf(ctx->out, " placeholder=\"%s\"", node->as.html_element.placeholder_attr);
+    if (strlen(node->as.html_element.value_attr) > 0)
+        fprintf(ctx->out, " value=\"%s\"", node->as.html_element.value_attr);
+        
+    if (node->as.html_element.is_self_closing) {
+        fprintf(ctx->out, " />\n");
+        return;
+    }
+    
+    fprintf(ctx->out, ">");
+    
+    if (node->as.html_element.text_content) {
+        Value *val = eval(ctx->interp, node->as.html_element.text_content, ctx->env);
+        char *str = val_to_string(val);
+        fprintf(ctx->out, "%s", str);
+        free(str);
+        val_free(val);
+    }
+    
+    if (node->as.html_element.children.count > 0) {
+        fprintf(ctx->out, "\n");
+        ctx->indent++;
+        for (int i = 0; i < node->as.html_element.children.count; i++) {
+            codegen_node(ctx, node->as.html_element.children.items[i]);
+        }
+        ctx->indent--;
+        indent(ctx);
+    }
+    
+    fprintf(ctx->out, "</%s>\n", node->as.html_element.tag);
+}
+
+/* ═══════════════════════════════════════════
+   EPF v2.0 COMPONENT CODE GENERATORS
+   ═══════════════════════════════════════════ */
+
+/* ── Design system context (populated by NODE_USE_DESIGN) ── */
+typedef struct {
+    char primary[64];
+    char secondary[64];
+    char background[64];
+    char headline_font[64];
+    char body_font[64];
+    char icon_set[64];
+    int  has_material_icons;
+} DesignCtx;
+
+static DesignCtx g_design = {
+    "#a3f69b", "#e9c349", "#131313",
+    "Noto Serif", "Inter", "Material Symbols", 1
+};
+
+/* Inject Tailwind + Google Fonts + Material Icons head block */
+static void gen_use_design(CodegenCtx *ctx, ASTNode *node) {
+    if (strlen(node->as.use_design.primary)       > 0)
+        strncpy(g_design.primary,       node->as.use_design.primary,       63);
+    if (strlen(node->as.use_design.secondary)     > 0)
+        strncpy(g_design.secondary,     node->as.use_design.secondary,     63);
+    if (strlen(node->as.use_design.background)    > 0)
+        strncpy(g_design.background,    node->as.use_design.background,    63);
+    if (strlen(node->as.use_design.headline_font) > 0)
+        strncpy(g_design.headline_font, node->as.use_design.headline_font, 63);
+    if (strlen(node->as.use_design.body_font)     > 0)
+        strncpy(g_design.body_font,     node->as.use_design.body_font,     63);
+
+    /* Output CDN links + Tailwind config */
+    fprintf(ctx->out,
+        "<script src='https://cdn.tailwindcss.com?plugins=forms,container-queries'></script>\n"
+        "<link href='https://fonts.googleapis.com/css2?family=%s:ital,wght@0,400;0,700;1,400"
+        "&family=%s:wght@300;400;500;600&display=swap' rel='stylesheet'/>\n"
+        "<link href='https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+        ":wght,FILL@100..700,0..1&display=swap' rel='stylesheet'/>\n"
+        "<style>.material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24;}"
+        ".glass-card{background:rgba(53,53,52,0.4);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);}"
+        ".text-glow{text-shadow:0 0 20px rgba(163,246,155,0.3);}"
+        "#booking-modal{display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.8);"
+        "backdrop-filter:blur(10px);align-items:center;justify-content:center;}"
+        "#booking-modal.active{display:flex;animation:fadeIn 0.5s ease forwards;}"
+        ".modal-content{background:%s;border:1px solid %s;padding:3rem;border-radius:1rem;"
+        "text-align:center;color:#e5e2e1;transform:translateY(20px);animation:slideUp 0.5s ease forwards;}"
+        "@keyframes slideUp{to{transform:translateY(0);}}"
+        "@keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}"
+        ".animate-spin{animation:spin 1s linear infinite;display:inline-block;vertical-align:middle;}"
+        "</style>\n"
+        "<script>tailwind.config={darkMode:'class',theme:{extend:{colors:{"
+        "'primary-fixed-dim':'%s','on-primary-fixed':'#002203','on-primary':'#003909',"
+        "'primary-fixed':'%s','surface':'%s','background':'%s',"
+        "'secondary':'%s','on-surface':'#e5e2e1',"
+        "'on-surface-variant':'#bfcaba','surface-container-highest':'#353534',"
+        "'surface-container-low':'#1c1b1b','surface-container':'#201f1f',"
+        "'outline-variant':'#40493d','secondary-container':'#ae8d10',"
+        "'on-secondary-container':'#342800'},"
+        "fontFamily:{'headline':['%s'],'body':['%s'],'label':['%s']}}}}</script>\n",
+        g_design.headline_font, g_design.body_font,
+        g_design.background, g_design.primary,   /* modal bg/border */
+        g_design.primary, g_design.primary,       /* primary-fixed-dim, primary-fixed */
+        g_design.background, g_design.background, /* surface, background */
+        g_design.secondary,                        /* secondary */
+        g_design.headline_font, g_design.body_font, g_design.body_font
+    );
+}
+
+/* ── NAVBAR ── */
+static void gen_make_navbar(CodegenCtx *ctx, ASTNode *node) {
+    fprintf(ctx->out,
+        "<div id='tailwind-wrapper' class='bg-surface text-on-surface font-body"
+        " selection:bg-primary-fixed selection:text-on-primary-fixed'>\n"
+        "<nav class='fixed top-0 w-full z-50 bg-surface/40 backdrop-blur-xl"
+        " flex justify-between items-center px-12 py-8 max-w-[1920px] mx-auto'>\n"
+        "<div class='font-headline text-2xl italic text-[#e5e2e1] ml-8'>%s</div>\n"
+        "<div class='hidden md:flex items-center gap-12'>\n",
+        node->as.make_navbar.brand
+    );
+    for (int i = 0; i < node->as.make_navbar.children.count; i++) {
+        ASTNode *c = node->as.make_navbar.children.items[i];
+        if (!c) continue;
+        if (c->type == NODE_NAV_LINK) {
+            fprintf(ctx->out,
+                "<a class='font-body text-[0.6875rem] uppercase tracking-widest"
+                " text-[#e5e2e1]/70 transition-all hover:bg-[#88d982]/10 p-2'"
+                " href='%s'>%s</a>\n",
+                c->as.nav_link.href, c->as.nav_link.label);
+        } else if (c->type == NODE_ACTION_BTN) {
+            fprintf(ctx->out,
+                "<button class='interactive-btn bg-primary-fixed text-on-primary-fixed"
+                " px-8 py-3 rounded-xl font-body text-[0.6875rem] uppercase tracking-widest"
+                " hover:brightness-110 transition-all'"
+                " data-modal='%s'>%s</button>\n",
+                c->as.action_btn.modal_id, c->as.action_btn.label);
+        }
+    }
+    fprintf(ctx->out, "</div>\n</nav>\n");
+}
+
+/* ── HERO ── */
+static void gen_make_hero(CodegenCtx *ctx, ASTNode *node) {
+    fprintf(ctx->out,
+        "<header class='relative h-screen w-full flex items-center overflow-hidden'>\n"
+        "<div class='absolute inset-0 z-0'>\n"
+        "<img class='w-full h-full object-cover brightness-[0.%d]' src='%s'/>\n"
+        "</div>\n"
+        "<div class='relative z-10 w-full px-12 md:px-24 flex flex-col md:flex-row"
+        " items-end justify-between'>\n"
+        "<div class='mb-12 md:mb-0 max-w-3xl'>\n"
+        "<h1 class='font-headline text-[3.5rem] md:text-[6rem] leading-none tracking-tight"
+        " text-on-surface mb-6 opacity-90'>\n"
+        "%s <br/><span class='italic text-primary-fixed-dim'>%s</span>\n"
+        "</h1>\n"
+        "<p class='font-label text-sm uppercase tracking-[0.3em] text-secondary opacity-80'>%s</p>\n"
+        "</div>\n",
+        node->as.make_hero.bg_dim,
+        node->as.make_hero.bg_image,
+        node->as.make_hero.title,
+        node->as.make_hero.accented,
+        node->as.make_hero.subtitle
+    );
+    if (node->as.make_hero.overlay_card) {
+        ASTNode *oc = node->as.make_hero.overlay_card;
+        fprintf(ctx->out,
+            "<div class='glass-card p-12 rounded-xl max-w-md w-full"
+            " border border-outline-variant/10 shadow-2xl md:translate-y-24'>\n"
+            "<h3 class='font-headline text-2xl mb-8'>%s</h3>\n"
+            "<div class='space-y-6'>\n",
+            oc->as.overlay_card.title);
+        for (int i = 0; i < oc->as.overlay_card.children.count; i++) {
+            ASTNode *c = oc->as.overlay_card.children.items[i];
+            if (!c) continue;
+            if (c->type == NODE_GUEST_PICKER) {
+                fprintf(ctx->out,
+                    "<div class='group'><label class='font-label text-[0.6875rem]"
+                    " uppercase tracking-widest text-secondary mb-2 block'>Guests</label>\n"
+                    "<div class='bg-surface-container-highest/40 p-4 rounded-lg flex"
+                    " items-center justify-between group-hover:bg-surface-container-highest/60"
+                    " transition-colors'>\n"
+                    "<span class='text-sm'>%d People</span>\n"
+                    "<span class='material-symbols-outlined text-sm'>expand_more</span>\n"
+                    "</div></div>\n", c->as.guest_picker.default_count);
+            } else if (c->type == NODE_DATE_PICKER) {
+                fprintf(ctx->out,
+                    "<div class='group'><label class='font-label text-[0.6875rem]"
+                    " uppercase tracking-widest text-secondary mb-2 block'>Date</label>\n"
+                    "<div class='bg-surface-container-highest/40 p-4 rounded-lg flex"
+                    " items-center justify-between group-hover:bg-surface-container-highest/60"
+                    " transition-colors'>\n"
+                    "<span class='text-sm'>%s</span>\n"
+                    "<span class='material-symbols-outlined text-sm'>calendar_today</span>\n"
+                    "</div></div>\n", c->as.date_picker.label);
+            } else if (c->type == NODE_ACTION_BTN) {
+                fprintf(ctx->out,
+                    "<button class='interactive-btn w-full bg-primary-fixed"
+                    " text-on-primary-fixed py-5 rounded-xl font-label text-[0.6875rem]"
+                    " uppercase tracking-[0.2em] font-bold hover:brightness-110"
+                    " transition-all shadow-lg' data-modal='%s'>%s</button>\n",
+                    c->as.action_btn.modal_id, c->as.action_btn.label);
+            }
+        }
+        fprintf(ctx->out, "</div></div>\n");
+    }
+    fprintf(ctx->out, "</div>\n</header>\n");
+}
+
+/* ── CONTENT SECTION ── */
+static void gen_content_section(CodegenCtx *ctx, ASTNode *node) {
+    fprintf(ctx->out,
+        "<section id='%s' class='py-48 px-12 md:px-24 max-w-[1920px] mx-auto overflow-hidden'>\n"
+        "<div class='grid grid-cols-1 md:grid-cols-12 gap-24 items-start'>\n",
+        node->as.content_section.id);
+
+    /* Left column */
+    if (node->as.content_section.left_col) {
+        fprintf(ctx->out, "<div class='md:col-span-5 space-y-24'>\n");
+        ASTNode *col = node->as.content_section.left_col;
+        for (int i = 0; i < col->as.column.children.count; i++)
+            codegen_node(ctx, col->as.column.children.items[i]);
+        fprintf(ctx->out, "</div>\n");
+    }
+
+    /* Right column */
+    if (node->as.content_section.right_col) {
+        fprintf(ctx->out, "<div class='md:col-span-7 relative'>\n");
+        ASTNode *col = node->as.content_section.right_col;
+        for (int i = 0; i < col->as.column.children.count; i++)
+            codegen_node(ctx, col->as.column.children.items[i]);
+        fprintf(ctx->out, "</div>\n");
+    }
+    fprintf(ctx->out, "</div>\n</section>\n");
+}
+
+/* ── EYEBROW ── */
+static void gen_eyebrow(CodegenCtx *ctx, ASTNode *node) {
+    fprintf(ctx->out,
+        "<span class='font-label text-[0.6875rem] uppercase tracking-[0.4em]"
+        " text-primary-fixed-dim mb-4 block'>%s</span>\n",
+        node->as.eyebrow.text);
+}
+
+/* ── ITEM LIST ── */
+static void gen_item_list(CodegenCtx *ctx, ASTNode *node) {
+    fprintf(ctx->out, "<div class='space-y-16 pl-8 border-l border-outline-variant/20'>\n");
+    for (int i = 0; i < node->as.item_list.entries.count; i++) {
+        ASTNode *e = node->as.item_list.entries.items[i];
+        if (!e || e->type != NODE_LIST_ENTRY) continue;
+        const char *offset = e->as.list_entry.offset ? " md:translate-x-12" : "";
+        fprintf(ctx->out,
+            "<div class='group cursor-default%s'>\n"
+            "<div class='flex justify-between items-baseline mb-2'>\n"
+            "<h4 class='font-headline text-xl group-hover:text-primary-fixed transition-colors'>%s</h4>\n"
+            "<span class='font-headline text-4xl text-secondary'>%02d</span></div>\n"
+            "<p class='text-sm text-on-surface-variant italic'>%s</p>\n"
+            "</div>\n",
+            offset, e->as.list_entry.label,
+            e->as.list_entry.number, e->as.list_entry.detail);
+    }
+    fprintf(ctx->out, "</div>\n");
+}
+
+/* ── FEATURE IMAGE ── */
+static void gen_feature_image(CodegenCtx *ctx, ASTNode *node) {
+    const char *aspect = strlen(node->as.feature_image.aspect) > 0
+                         ? node->as.feature_image.aspect : "4/5";
+    int reveal = strstr(node->as.feature_image.hover_mode, "color") != NULL;
+    fprintf(ctx->out,
+        "<div class='aspect-[%s] bg-surface-container-low overflow-hidden rounded-xl'>\n"
+        "<img class='w-full h-full object-cover%s transition-all duration-1000' src='%s'/>\n"
+        "</div>\n",
+        aspect,
+        reveal ? " grayscale hover:grayscale-0" : "",
+        node->as.feature_image.src);
+}
+
+/* ── PRICE BADGE ── */
+static void gen_price_badge(CodegenCtx *ctx, ASTNode *node) {
+    fprintf(ctx->out,
+        "<div class='absolute -bottom-12 -left-12 glass-card p-12 rounded-xl hidden md:block'>\n"
+        "<span class='font-label text-[0.6875rem] uppercase tracking-widest"
+        " text-secondary block mb-2'>The Experience</span>\n"
+        "<span class='font-headline text-5xl'>%s</span>\n"
+        "<span class='font-label text-xs uppercase ml-2 text-on-surface-variant'>%s</span>\n"
+        "</div>\n",
+        node->as.price_badge.price, node->as.price_badge.label);
+}
+
+/* ── GALLERY ── */
+static void gen_make_gallery(CodegenCtx *ctx, ASTNode *node) {
+    fprintf(ctx->out,
+        "<section class='py-48 bg-surface-container-low/30'>\n"
+        "<div class='px-12 md:px-24 mb-24 text-center'>\n"
+        "<h2 class='font-headline text-[4rem] mb-6'>%s</h2>\n"
+        "<p class='font-label text-xs uppercase tracking-[0.5em] text-on-surface-variant'>%s</p>\n"
+        "</div>\n"
+        "<div class='grid grid-cols-1 md:grid-cols-%d gap-4 px-4 h-[800px]'>\n",
+        node->as.make_gallery.title,
+        node->as.make_gallery.subtitle,
+        node->as.make_gallery.columns);
+
+    for (int i = 0; i < node->as.make_gallery.images.count; i++) {
+        ASTNode *img = node->as.make_gallery.images.items[i];
+        if (!img || img->type != NODE_GALLERY_IMAGE) continue;
+        const char *mt = img->as.gallery_image.offset_top > 0 ? " md:mt-24" : "";
+        fprintf(ctx->out,
+            "<div class='relative overflow-hidden group h-full%s'>\n"
+            "<img class='w-full h-full object-cover grayscale brightness-75"
+            " group-hover:scale-110 transition-transform duration-1000' src='%s'/>\n"
+            "<div class='absolute inset-0 bg-gradient-to-t from-surface"
+            " to-transparent opacity-60'></div>\n"
+            "</div>\n",
+            mt, img->as.gallery_image.src);
+    }
+    fprintf(ctx->out, "</div>\n</section>\n");
+}
+
+/* ── FORM ── */
+static void gen_make_form(CodegenCtx *ctx, ASTNode *node) {
+    fprintf(ctx->out,
+        "<section class='py-48 px-12 md:px-24 flex flex-col items-center"
+        " justify-center text-center'>\n"
+        "<div class='max-w-2xl w-full'>\n"
+        "<span class='font-label text-[0.6875rem] uppercase tracking-[0.5em]"
+        " text-secondary mb-6 block'>%s</span>\n"
+        "<h2 class='font-headline text-[3.5rem] mb-12'>%s</h2>\n"
+        "<div class='space-y-8 text-left'>\n"
+        "<div class='grid grid-cols-1 md:grid-cols-2 gap-8'>\n",
+        node->as.make_form.eyebrow, node->as.make_form.title);
+
+    int in_grid = 1;
+    for (int i = 0; i < node->as.make_form.children.count; i++) {
+        ASTNode *c = node->as.make_form.children.items[i];
+        if (!c) continue;
+        if (c->type == NODE_FORM_FIELD) {
+            int is_textarea = strcmp(c->as.form_field.field_type, "textarea") == 0;
+            if (is_textarea && in_grid) {
+                fprintf(ctx->out, "</div>\n"); in_grid = 0;
+            }
+            if (is_textarea) {
+                fprintf(ctx->out,
+                    "<div class='relative'>\n"
+                    "<label class='font-label text-xs text-on-surface-variant"
+                    " uppercase tracking-widest mb-3 block'>%s</label>\n"
+                    "<textarea class='w-full bg-surface-container-highest border-none p-5"
+                    " rounded-lg focus:ring-1 focus:ring-primary-fixed/30 transition-all"
+                    " placeholder:text-on-surface-variant/30 text-sm h-32'"
+                    " placeholder='%s'></textarea>\n"
+                    "</div>\n",
+                    c->as.form_field.field_label, c->as.form_field.placeholder);
+            } else {
+                fprintf(ctx->out,
+                    "<div class='relative'>\n"
+                    "<label class='font-label text-xs text-on-surface-variant"
+                    " uppercase tracking-widest mb-3 block'>%s</label>\n"
+                    "<input class='w-full bg-surface-container-highest border-none p-5"
+                    " rounded-lg focus:ring-1 focus:ring-primary-fixed/30 transition-all"
+                    " placeholder:text-on-surface-variant/30 text-sm'"
+                    " placeholder='%s' type='%s'/>\n"
+                    "</div>\n",
+                    c->as.form_field.field_label,
+                    c->as.form_field.placeholder,
+                    c->as.form_field.field_type);
+            }
+        } else if (c->type == NODE_SUBMIT_BTN) {
+            fprintf(ctx->out,
+                "<button class='interactive-btn w-full bg-secondary-container"
+                " text-on-secondary-container py-6 rounded-xl font-label text-[0.75rem]"
+                " uppercase tracking-[0.3em] font-bold hover:brightness-110"
+                " transition-all' data-modal='%s'>%s</button>\n",
+                c->as.submit_btn.modal_id, c->as.submit_btn.label);
+        }
+    }
+    fprintf(ctx->out, "</div></div></section>\n");
+}
+
+/* ── MODAL ── */
+static void gen_make_modal(CodegenCtx *ctx, ASTNode *node) {
+    fprintf(ctx->out,
+        "<div id='%s'>\n"
+        "<div class='modal-content'>\n"
+        "<span class='material-symbols-outlined'"
+        " style='font-size:4rem;color:%s;margin-bottom:1rem;'>%s</span>\n"
+        "<h2 class='font-headline text-3xl mb-4'>%s</h2>\n"
+        "<p class='font-body text-on-surface-variant mb-8'>%s</p>\n"
+        "<button id='close-%s' class='bg-surface-container-highest px-8 py-3"
+        " rounded-xl font-label text-sm hover:bg-surface-variant"
+        " transition-colors'>%s</button>\n"
+        "</div></div>\n"
+        "<script>\n"
+        "document.querySelectorAll('[data-modal=\"%s\"]').forEach(btn=>{\n"
+        "  btn.addEventListener('click',function(e){\n"
+        "    e.preventDefault();\n"
+        "    const orig=this.innerHTML;\n"
+        "    this.innerHTML='<span class=\"material-symbols-outlined animate-spin\""
+        " style=\"font-size:1.2rem;margin-right:0.5rem;\">sync</span> Processing...';\n"
+        "    this.style.opacity='0.8';this.style.pointerEvents='none';\n"
+        "    setTimeout(()=>{\n"
+        "      this.innerHTML=orig;this.style.opacity='1';this.style.pointerEvents='auto';\n"
+        "      document.getElementById('%s').classList.add('active');\n"
+        "    },1500);\n"
+        "  });\n"
+        "});\n"
+        "document.getElementById('close-%s').addEventListener('click',()=>{\n"
+        "  document.getElementById('%s').classList.remove('active');\n"
+        "});\n"
+        "</script>\n",
+        node->as.make_modal.modal_id,
+        strcmp(node->as.make_modal.color, "primary") == 0 ? g_design.primary : g_design.secondary,
+        node->as.make_modal.icon,
+        node->as.make_modal.heading,
+        node->as.make_modal.body_text,
+        node->as.make_modal.modal_id,
+        node->as.make_modal.dismiss_label,
+        node->as.make_modal.modal_id,
+        node->as.make_modal.modal_id,
+        node->as.make_modal.modal_id,
+        node->as.make_modal.modal_id);
+}
+
+/* ── FOOTER ── */
+static void gen_make_footer(CodegenCtx *ctx, ASTNode *node) {
+    fprintf(ctx->out,
+        "<footer class='bg-[%s] w-full pt-24 pb-12 flex flex-col md:flex-row"
+        " justify-between items-end px-20 gap-24'>\n"
+        "<div class='flex-1'>\n"
+        "<div class='font-headline text-4xl text-[#e5e2e1] mb-12'>%s</div>\n"
+        "<p class='font-body text-[0.875rem] leading-relaxed text-[#e5e2e1]/50 max-w-sm'>%s</p>\n"
+        "</div>\n"
+        "<div class='text-right'>\n"
+        "<p class='font-headline text-[2rem] text-[%s] mb-4'>%s</p>\n"
+        "<p class='font-body text-[0.875rem] leading-relaxed text-[#e5e2e1]/50'>%s</p>\n"
+        "<div class='mt-12 text-[#e5e2e1]/30 font-body text-[0.6875rem]"
+        " uppercase tracking-widest'>© %s</div>\n"
+        "</div>\n"
+        "</footer>\n"
+        "</div>\n", /* close tailwind-wrapper */
+        g_design.background,
+        node->as.make_footer.brand,
+        node->as.make_footer.tagline,
+        g_design.secondary,
+        node->as.make_footer.contact_heading,
+        node->as.make_footer.address,
+        node->as.make_footer.copyright);
+}
+
 /* ═════════════════════════════════════════════
    MAIN DISPATCH
    ═════════════════════════════════════════════ */
@@ -720,6 +1082,20 @@ void codegen_node(CodegenCtx *ctx, ASTNode *node) {
         case NODE_MAKE_REPORT:   gen_report(ctx, node);     break;
         case NODE_SECTION_OUT:   gen_section(ctx, node);    break;
         case NODE_ROW:           gen_row(ctx, node);        break;
+        case NODE_HTML_ELEMENT:  gen_html_element(ctx, node); break;
+        /* v2.0 EPF */
+        case NODE_USE_DESIGN:      gen_use_design(ctx, node); break;
+        case NODE_MAKE_NAVBAR:     gen_make_navbar(ctx, node); break;
+        case NODE_MAKE_HERO:       gen_make_hero(ctx, node); break;
+        case NODE_CONTENT_SECTION: gen_content_section(ctx, node); break;
+        case NODE_EYEBROW:         gen_eyebrow(ctx, node); break;
+        case NODE_ITEM_LIST:       gen_item_list(ctx, node); break;
+        case NODE_FEATURE_IMAGE:   gen_feature_image(ctx, node); break;
+        case NODE_PRICE_BADGE:     gen_price_badge(ctx, node); break;
+        case NODE_MAKE_GALLERY:    gen_make_gallery(ctx, node); break;
+        case NODE_MAKE_FORM:       gen_make_form(ctx, node); break;
+        case NODE_MAKE_MODAL:      gen_make_modal(ctx, node); break;
+        case NODE_MAKE_FOOTER:     gen_make_footer(ctx, node); break;
         default: break;
     }
 }
@@ -854,7 +1230,7 @@ void codegen_page(Interpreter *interp, Env *env, ASTNode *node,
         strncpy(manifest->pages[manifest->active].label, title, 255);
     }
 
-    write_head(&ctx, title);
+    write_head(&ctx, title, node->as.make_page.color);
 
     /* ── Multi-page shell: nav + sidebar ── */
     if (multi) {

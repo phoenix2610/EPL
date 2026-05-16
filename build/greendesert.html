@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EPL Page</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        /* ── EPL Base Premium Styles ── */
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&family=Inter:wght@300;400;600;700&display=swap');
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Syne', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #050508;
+            color: #e8e8f0;
+            overflow-x: hidden;
+            cursor: none;
+            line-height: 1.6;
+            padding: 0;
+            margin: 0;
+        }
+
+        /* ── Custom Cursor ── */
+        .cursor {
+            position: fixed;
+            width: 12px;
+            height: 12px;
+            background: #fff;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 99999;
+            transition: transform 0.1s;
+            mix-blend-mode: difference;
+            transform: translate(-50%, -50%);
+        }
+
+        .cursor-ring {
+            position: fixed;
+            width: 40px;
+            height: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 99998;
+            transition: all 0.12s ease;
+            transform: translate(-50%, -50%);
+        }
+
+        /* ── EPL Elements (Reports, Stats, Charts) ── */
+        .epl-page {
+            animation: fadeIn 0.6s ease-out;
+            width: 100%;
+            min-height: 100vh;
+            position: relative;
+            z-index: 10;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h1 {
+            font-size: clamp(2.5rem, 5vw, 4.5rem);
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 0.25rem;
+            letter-spacing: -0.02em;
+        }
+
+        h2 {
+            font-size: 1.35rem;
+            font-weight: 300;
+            color: #fff;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+
+        h3 {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 1.2rem;
+            letter-spacing: 0.01em;
+        }
+
+        h4 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 0.5rem;
+        }
+
+        p {
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 1rem;
+            font-weight: 300;
+        }
+
+        strong {
+            font-weight: 700;
+            color: #c8ff00;
+        }
+
+        hr {
+            border: none;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(200, 255, 0, 0.5), transparent);
+            margin: 2rem 0;
+            opacity: 0.5;
+        }
+
+        .epl-spacer {
+            height: 1.5rem;
+        }
+
+        .epl-section {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 3rem;
+            margin: 2rem 3rem;
+            transition: transform 0.3s ease, background 0.3s ease;
+        }
+
+        .epl-section:hover {
+            background: #0d0d12;
+            transform: translateY(-2px);
+        }
+
+        .epl-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1px;
+            background: rgba(255, 255, 255, 0.06);
+            margin-bottom: 2rem;
+        }
+
+        .epl-stat {
+            background: #050508;
+            padding: 2.5rem;
+            text-align: left;
+            transition: background 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .epl-stat:hover {
+            background: rgba(200, 255, 0, 0.03);
+        }
+
+        .epl-stat-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-top: 0.5rem;
+            font-weight: 600;
+        }
+
+        .epl-stat-value {
+            font-size: 3rem;
+            font-weight: 800;
+            color: #c8ff00;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .epl-chart-wrap {
+            margin: 0 3rem 4rem;
+            padding: 2rem;
+            background: #0a0a10;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 4px;
+        }
+
+        .epl-chart-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 2rem;
+        }
+
+        canvas {
+            max-height: 350px;
+            width: 100% !important;
+        }
+
+        table {
+            width: calc(100% - 6rem);
+            margin: 0 3rem 4rem;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+        }
+
+        th {
+            padding: 1rem 1.5rem;
+            text-align: left;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 0.1em;
+            color: rgba(255, 255, 255, 0.3);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            text-transform: uppercase;
+        }
+
+        td {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            color: rgba(255, 255, 255, 0.5);
+            background: #050508;
+            transition: background 0.2s;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        td:first-child {
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .epl-report {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.88rem;
+            color: rgba(255, 255, 255, 0.5);
+            padding: 0 3rem;
+        }
+
+        .epl-report-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.7rem 0;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+            transition: color 0.2s;
+        }
+
+        .epl-report-row:hover {
+            color: #c8ff00;
+        }
+
+        .epl-report-row:last-child {
+            border-bottom: none;
+        }
+
+        body,
+        .epl-page {
+            background: #0b0914 !important;
+            color: #e2d8f0;
+        }
+
+        .nav {
+            background: rgba(11, 9, 20, 0.85) !important;
+            border-bottom: 1px solid rgba(192, 38, 211, 0.3) !important;
+        }
+
+        .epl-section {
+            background: #130f23 !important;
+            border: 1px solid #9333ea !important;
+            border-radius: 16px !important;
+            box-shadow: 0 0 30px rgba(147, 51, 234, 0.15), inset 0 0 20px rgba(147, 51, 234, 0.05) !important;
+        }
+
+        .epl-stat {
+            background: #1a1432 !important;
+            border: 1px solid #c026d3 !important;
+            border-radius: 12px;
+            margin: 0.5rem;
+            box-shadow: 0 0 20px rgba(192, 38, 211, 0.2) !important;
+        }
+
+        .epl-stat-value {
+            color: #f472b6 !important;
+            text-shadow: 0 0 20px rgba(244, 114, 182, 0.8) !important;
+        }
+
+        .epl-chart-wrap {
+            background: #130f23 !important;
+            border: 1px solid #c026d3 !important;
+            border-radius: 16px !important;
+            box-shadow: 0 0 40px rgba(192, 38, 211, 0.25) !important;
+        }
+
+        canvas {
+            filter: drop-shadow(0px 0px 8px rgba(244, 114, 182, 0.8));
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            color: #fdf4ff !important;
+            text-shadow: 0 0 15px rgba(192, 38, 211, 0.6) !important;
+            font-weight: 800 !important;
+            letter-spacing: 0.05em;
+        }
+
+        hr {
+            background: linear-gradient(90deg, transparent, rgba(192, 38, 211, 0.8), transparent) !important;
+            opacity: 1 !important;
+        }
+
+        table {
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(192, 38, 211, 0.15);
+        }
+
+        table th {
+            background: #271441 !important;
+            border-bottom: 2px solid #c026d3 !important;
+            color: #f472b6 !important;
+            text-shadow: 0 0 10px rgba(244, 114, 182, 0.5);
+        }
+
+        table td {
+            background: #1a1432 !important;
+            border-bottom: 1px solid rgba(192, 38, 211, 0.2) !important;
+        }
+
+        .epl-report-row:hover {
+            color: #f472b6 !important;
+            text-shadow: 0 0 10px rgba(244, 114, 182, 0.5);
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Custom Cursor -->
+    <div class="cursor" id="cur"></div>
+    <div class="cursor-ring" id="ring"></div>
+    <div class="epl-page">
+        <p>
+            <style>
+                .material-symbols-outlined {
+                    font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+                }
+
+                .glass-card {
+                    background: rgba(53, 53, 52, 0.4);
+                    backdrop-filter: blur(24px);
+                    -webkit-backdrop-filter: blur(24px);
+                }
+
+                .text-glow {
+                    text-shadow: 0 0 20px rgba(163, 246, 155, 0.3);
+                }
+
+                /* Custom Modal Style */
+                #booking-modal {
+                    display: none;
+                    position: fixed;
+                    inset: 0;
+                    z-index: 100;
+                    background: rgba(0, 0, 0, 0.8);
+                    backdrop-filter: blur(10px);
+                    align-items: center;
+                    justify-content: center;
+                }
+
+                #booking-modal.active {
+                    display: flex;
+                    animation: fadeIn 0.5s ease forwards;
+                }
+
+                .modal-content {
+                    background: #131313;
+                    border: 1px solid #88d982;
+                    padding: 3rem;
+                    border-radius: 1rem;
+                    text-align: center;
+                    color: #e5e2e1;
+                    transform: translateY(20px);
+                    animation: slideUp 0.5s ease forwards;
+                }
+
+                @keyframes slideUp {
+                    to {
+                        transform: translateY(0);
+                    }
+                }
+
+                @keyframes spin {
+                    from {
+                        transform: rotate(0deg);
+                    }
+
+                    to {
+                        transform: rotate(360deg);
+                    }
+                }
+
+                .animate-spin {
+                    animation: spin 1s linear infinite;
+                    display: inline-block;
+                    vertical-align: middle;
+                }
+            </style>
+            <script src='https://cdn.tailwindcss.com?plugins=forms,container-queries'></script>
+            <link
+                href='https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap'
+                rel='stylesheet' />
+            <link
+                href='https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap'
+                rel='stylesheet' />
+            <script>
+                tailwind.config = {
+                    darkMode: 'class',
+                    theme: {
+                        extend: {
+                            colors: {
+                                'primary-fixed-dim': '#88d982', 'on-primary-fixed': '#002203', 'on-primary': '#003909',
+                                'primary-fixed': '#a3f69c', 'on-error-container': '#ffdad6', 'error': '#ffb4ab',
+                                'inverse-surface': '#e5e2e1', 'surface-container-highest': '#353534',
+                                'on-secondary-container': '#342800', 'surface-variant': '#353534',
+                                'on-tertiary': '#402d07', 'on-surface-variant': '#bfcaba',
+                                'surface-container-lowest': '#0e0e0e', 'error-container': '#93000a',
+                                'secondary-fixed-dim': '#e9c349', 'on-background': '#e5e2e1',
+                                'on-secondary-fixed-variant': '#574500', 'tertiary-container': '#e2c28f',
+                                'inverse-primary': '#1c6d24', 'outline': '#8a9485', 'secondary': '#e9c349',
+                                'tertiary': '#ffdeaa', 'surface-tint': '#88d982', 'outline-variant': '#40493d',
+                                'surface-container-low': '#1c1b1b', 'on-primary-fixed-variant': '#005311',
+                                'surface-container-high': '#2a2a2a', 'surface': '#131313',
+                                'primary-container': '#88d982', 'tertiary-fixed-dim': '#e2c28f',
+                                'surface-container': '#201f1f', 'secondary-container': '#ae8d10',
+                                'on-surface': '#e5e2e1', 'inverse-on-surface': '#313030', 'on-secondary': '#3c2f00',
+                                'secondary-fixed': '#ffe087', 'background': '#131313', 'primary': '#a3f69b',
+                                'tertiary-fixed': '#ffdeaa', 'on-primary-container': '#096018'
+                            },
+                            fontFamily: { 'headline': ['Noto Serif'], 'body': ['Inter'], 'label': ['Inter'] }
+                        }
+                    }
+                }
+            </script>
+        </p>
+        <p>
+        <div id='tailwind-wrapper'
+            class='bg-surface text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container'>
+            <nav
+                class='fixed top-0 w-full z-50 bg-surface/40 backdrop-blur-xl flex justify-between items-center px-12 py-8 max-w-[1920px] mx-auto'>
+                <div class='font-serif text-2xl italic text-[#e5e2e1] ml-8'>Green Desert</div>
+                <div class='hidden md:flex items-center gap-12'>
+                    <a class='font-sans text-[0.6875rem] uppercase tracking-widest text-[#a3f69b] font-medium transition-all hover:bg-[#88d982]/10 p-2'
+                        href='#'>Journal</a>
+                    <a class='font-sans text-[0.6875rem] uppercase tracking-widest text-[#e5e2e1]/70 transition-all hover:bg-[#88d982]/10 p-2'
+                        href='#'>Atmosphere</a>
+                    <a class='font-sans text-[0.6875rem] uppercase tracking-widest text-[#e5e2e1]/70 transition-all hover:bg-[#88d982]/10 p-2'
+                        href='#'>Provenance</a>
+                    <button
+                        class='interactive-btn bg-primary-container text-on-primary-container px-8 py-3 rounded-xl font-sans text-[0.6875rem] uppercase tracking-widest hover:bg-primary transition-all glassmorphism-cta-gradient-from-[#a3f69b]-to-[#88d982]'>Reserve</button>
+                </div>
+            </nav>
+            </p>
+            <p>
+            <header class='relative h-screen w-full flex items-center overflow-hidden'>
+                <div class='absolute inset-0 z-0'>
+                    <img class='w-full h-full object-cover brightness-[0.4]'
+                        src='https://lh3.googleusercontent.com/aida-public/AB6AXuCVFsqhySzjbNgH8QBh3AYSARmQVVBu658lggqAw2N9mM8IStkWg_j6wnF8E6ER4bSKyHcISbFaG-BMTkm2qZcjHqdgOmZpOuHY1ZEAKno9-kyP5seZPUeoTqMMEfPl_py8kuzw9go6gH7dz-Th-c_wD9Q21QgX75RrLZMp6qDgJ4Gxt7OFDNLsNxIf7eRIAkgQzLBQqUuMlv9zySKGmaHMetkDZ9-sYpCRqF6LJ94YBUlvNSMHUOIxJTJK85Q0TUoEm3DrXFQ3zxg' />
+                </div>
+                <div class='relative z-10 w-full px-12 md:px-24 flex flex-col md:flex-row items-end justify-between'>
+                    <div class='mb-12 md:mb-0 max-w-3xl'>
+                        <h1
+                            class='font-serif text-[3.5rem] md:text-[6rem] leading-none tracking-tight text-on-surface mb-6 opacity-90'>
+                            A Nocturnal <br /> <span class='italic text-primary-fixed-dim'>Odyssey</span>
+                        </h1>
+                        <p class='font-label text-sm uppercase tracking-[0.3em] text-secondary opacity-80'>The desert
+                            blooms at midnight</p>
+                    </div>
+                    <div
+                        class='glass-card p-12 rounded-xl max-w-md w-full border border-outline-variant/10 shadow-2xl md:translate-y-24'>
+                        <h3 class='font-headline text-2xl mb-8'>Secure Your Sanctuary</h3>
+                        <div class='space-y-6'>
+                            <div class='group'>
+                                <label
+                                    class='font-label text-[0.6875rem] uppercase tracking-widest text-secondary mb-2 block'>Guests</label>
+                                <div
+                                    class='bg-surface-container-highest/40 p-4 rounded-lg flex items-center justify-between group-hover:bg-surface-container-highest/60 transition-colors'>
+                                    <span class='text-sm'>2 People</span>
+                                    <span class='material-symbols-outlined text-sm'>expand_more</span>
+                                </div>
+                            </div>
+                            <div class='group'>
+                                <label
+                                    class='font-label text-[0.6875rem] uppercase tracking-widest text-secondary mb-2 block'>Date</label>
+                                <div
+                                    class='bg-surface-container-highest/40 p-4 rounded-lg flex items-center justify-between group-hover:bg-surface-container-highest/60 transition-colors'>
+                                    <span class='text-sm'>Select Evening</span>
+                                    <span class='material-symbols-outlined text-sm'>calendar_today</span>
+                                </div>
+                            </div>
+                            <button
+                                class='interactive-btn w-full bg-primary-container text-on-primary-container py-5 rounded-xl font-label text-[0.6875rem] uppercase tracking-[0.2em] font-bold hover:brightness-110 transition-all shadow-lg'>
+                                Check Availability
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            </p>
+            <p>
+            <section class='py-48 px-12 md:px-24 max-w-[1920px] mx-auto overflow-hidden'>
+                <div class='grid grid-cols-1 md:grid-cols-12 gap-24 items-start'>
+                    <div class='md:col-span-5 space-y-24'>
+                        <div>
+                            <span
+                                class='font-label text-[0.6875rem] uppercase tracking-[0.4em] text-primary-fixed-dim mb-4 block'>Current
+                                Narrative</span>
+                            <h2 class='font-headline text-[3.5rem] leading-tight mb-8'>The Seasonal <br /> Monologue
+                            </h2>
+                            <p class='font-body text-on-surface-variant leading-relaxed text-lg max-w-md'>
+                                Our tasting menu is a quiet conversation between the arid earth and the morning dew.
+                                Each course is a single word in a story that spans millennia.
+                            </p>
+                        </div>
+                        <div class='space-y-16 pl-8 border-l border-outline-variant/20'>
+                            <div class='group cursor-default'>
+                                <div class='flex justify-between items-baseline mb-2'>
+                                    <h4 class='font-headline text-xl group-hover:text-primary transition-colors'>Root
+                                        &amp; Ember</h4>
+                                    <span class='font-headline text-4xl text-secondary'>01</span>
+                                </div>
+                                <p class='text-sm text-on-surface-variant italic'>Charred yucca, desert honey, white
+                                    smoke.</p>
+                            </div>
+                            <div class='group cursor-default md:translate-x-12'>
+                                <div class='flex justify-between items-baseline mb-2'>
+                                    <h4 class='font-headline text-xl group-hover:text-primary transition-colors'>
+                                        Veridian Silence</h4>
+                                    <span class='font-headline text-4xl text-secondary'>02</span>
+                                </div>
+                                <p class='text-sm text-on-surface-variant italic'>Cactus pear, mountain herb, obsidian
+                                    salt.</p>
+                            </div>
+                            <div class='group cursor-default'>
+                                <div class='flex justify-between items-baseline mb-2'>
+                                    <h4 class='font-headline text-xl group-hover:text-primary transition-colors'>The
+                                        Oasis Crown</h4>
+                                    <span class='font-headline text-4xl text-secondary'>03</span>
+                                </div>
+                                <p class='text-sm text-on-surface-variant italic'>Braised succulents, wild blossoms,
+                                    gold leaf.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class='md:col-span-7 relative'>
+                        <div class='aspect-[4/5] bg-surface-container-low overflow-hidden rounded-xl'>
+                            <img class='w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-1000'
+                                src='https://lh3.googleusercontent.com/aida-public/AB6AXuAoM6i0tPHqVTn0Rvu00Jq2WDkzI5nSqnfANHNelsCj8lH8Z4ole_qk4SsNudDqA4mNpZASAJohBsHuHvqP33Kw60ufZd_sJtyrl7KVM5zRb_Ttn7SRWra7Q9EtEqLbRuWtqTyIdzjk5pBXcRVUUulKhq8zkUA4dgoXMHH9sOU5DCCx85r3m5l8s0shs5kFwoH4k5fI7C_9Brsn_LcNQsdr1EKmR5S6u1pRv7eYZ4iAwXxEYE0KbevOnKuHXWI2uqfj3MlpMVrzzAI' />
+                        </div>
+                        <div class='absolute -bottom-12 -left-12 glass-card p-12 rounded-xl hidden md:block'>
+                            <span
+                                class='font-label text-[0.6875rem] uppercase tracking-widest text-secondary block mb-2'>The
+                                Experience</span>
+                            <span class='font-headline text-5xl'>285</span>
+                            <span class='font-label text-xs uppercase ml-2 text-on-surface-variant'>per guest</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            </p>
+            <p>
+            <section class='py-48 bg-surface-container-low/30'>
+                <div class='px-12 md:px-24 mb-24 text-center'>
+                    <h2 class='font-headline text-[4rem] mb-6'>The Oasis</h2>
+                    <p class='font-label text-xs uppercase tracking-[0.5em] text-on-surface-variant'>Where time
+                        dissolves into shadow</p>
+                </div>
+                <div class='grid grid-cols-1 md:grid-cols-4 gap-4 px-4 h-[800px]'>
+                    <div class='relative overflow-hidden group h-full'>
+                        <img class='w-full h-full object-cover grayscale brightness-75 group-hover:scale-110 transition-transform duration-1000'
+                            src='https://lh3.googleusercontent.com/aida-public/AB6AXuCWhvHUp57PkahLccA9oOY3KcI3MOcoMkyO3aejtsugkSe9fvGIKtRoES18LNyg9RUVRG84adwcEmUKPfJhL_wlzz8C6mq-5TZwLMjMyrUfXO3bDGs9odFYsItnwZfvgxtwttR1FeCuvqWlBT6_Tjfeew1OD1_h6IBm6ut7-BHrrmoEub6hIJHrdVTpGYamkuZFjLsPIxU2PKFZF94nuYc0fb4l_cVOJKShcDw62L_EjeSpkCLoIb10bIgwJGWS88pjUo-NEooDYfA' />
+                        <div class='absolute inset-0 bg-gradient-to-t from-surface to-transparent opacity-60'></div>
+                    </div>
+                    <div class='md:mt-24 relative overflow-hidden group h-full'>
+                        <img class='w-full h-full object-cover grayscale brightness-75 group-hover:scale-110 transition-transform duration-1000'
+                            src='https://lh3.googleusercontent.com/aida-public/AB6AXuB66xiUS1jYXeA7n1_Tv1R0dAgpKe-telfbQLfbKUD_vqfUwrKOJIhhCNVLc60uZd92OPzpkpmsmky2Kl6hpHHMrE96xHj1NoHi3cKbAcXB1dmwV3-8q58wwVgyo_3cUKTi9WARDdD6ZR8dDDiIEOBQTgXgOrZSzvVsv6zLwVEc1DLimcBGgxUQq-Q1kQfNERYPsEi4yKOL6YLVMBEM1m3QK2rjJzDXgrGAo1Q66EyYz0PjCU2ROfBsncMBNR1mtWvlRm2UivpmwEQ' />
+                        <div class='absolute inset-0 bg-gradient-to-t from-surface to-transparent opacity-60'></div>
+                    </div>
+                    <div class='relative overflow-hidden group h-full'>
+                        <img class='w-full h-full object-cover grayscale brightness-75 group-hover:scale-110 transition-transform duration-1000'
+                            src='https://lh3.googleusercontent.com/aida-public/AB6AXuCA323GCs3_G7oTGjXPBJ7OGdy51c2BDZQ5oaDMKIZoLh3_DP7Yoc2oqat97LEXFRMVVLqZoiVQLmQQ3-hXAJGN7uN3yS2afl6gkpOgLSs5ufoDDb7Mv35jn8KVlpLDrakc74yhqkHEuroE2Qy7d5mgzK71uc9XhY4RqYZt3Pm1e3zB9PMFww-zXt6vQBn1NYw-CCy9SzBeyTGVWz8KfDsO9mf3Zxm01xCmCv5McaMMAdXklsH-HDMWs0-2wd-8l-HKDd4SsZ2KMYc' />
+                        <div class='absolute inset-0 bg-gradient-to-t from-surface to-transparent opacity-60'></div>
+                    </div>
+                    <div class='md:mt-12 relative overflow-hidden group h-full'>
+                        <img class='w-full h-full object-cover grayscale brightness-75 group-hover:scale-110 transition-transform duration-1000'
+                            src='https://lh3.googleusercontent.com/aida-public/AB6AXuD-OZB8q9KdPi1NOnrbUAYPKWZ3_Axd35cayZDkAQ3gI3d7VhT4kzP6z718Ota1z6NtSXEiXszLYovBNvUv8EM4ni0lML8FHTB6C7Cpd0GIC-3bTu6AxUUplDPddKwe3zeldteXTQFvGCWdumqf8l0Pjig1FsLX9hCLgpygoIoaahJYh-GGSdSgSyPNbMhraRl5xGC_Z0-kzbvDRa-a8-L24BX8bewZBTV3bpAuJM3nktftamDRSiAKPERcad7riAgKBZ6jQxCdvq8' />
+                        <div class='absolute inset-0 bg-gradient-to-t from-surface to-transparent opacity-60'></div>
+                    </div>
+                </div>
+            </section>
+            </p>
+            <p>
+            <section class='py-48 px-12 md:px-24 flex flex-col items-center justify-center text-center'>
+                <div class='max-w-2xl w-full'>
+                    <span
+                        class='font-label text-[0.6875rem] uppercase tracking-[0.5em] text-secondary mb-6 block'>Availability
+                        is Limited</span>
+                    <h2 class='font-headline text-[3.5rem] mb-12'>Claim Your Table</h2>
+                    <div class='space-y-8 text-left'>
+                        <div class='grid grid-cols-1 md:grid-cols-2 gap-8'>
+                            <div class='relative'>
+                                <label
+                                    class='font-label text-xs text-on-surface-variant uppercase tracking-widest mb-3 block'>Full
+                                    Name</label>
+                                <input
+                                    class='w-full bg-surface-container-highest border-none p-5 rounded-lg focus:ring-1 focus:ring-primary-container/30 transition-all placeholder:text-on-surface-variant/30 text-sm'
+                                    placeholder='Mr. Julian Thorne' type='text' />
+                            </div>
+                            <div class='relative'>
+                                <label
+                                    class='font-label text-xs text-on-surface-variant uppercase tracking-widest mb-3 block'>Email
+                                    Address</label>
+                                <input
+                                    class='w-full bg-surface-container-highest border-none p-5 rounded-lg focus:ring-1 focus:ring-primary-container/30 transition-all placeholder:text-on-surface-variant/30 text-sm'
+                                    placeholder='ethereal@oasis.com' type='email' />
+                            </div>
+                        </div>
+                        <div class='relative'>
+                            <label
+                                class='font-label text-xs text-on-surface-variant uppercase tracking-widest mb-3 block'>Dietary
+                                Allegiances</label>
+                            <textarea
+                                class='w-full bg-surface-container-highest border-none p-5 rounded-lg focus:ring-1 focus:ring-primary-container/30 transition-all placeholder:text-on-surface-variant/30 text-sm h-32'
+                                placeholder='Tell us what you seek...'></textarea>
+                        </div>
+                        <button
+                            class='interactive-btn w-full bg-secondary-container text-on-secondary-container py-6 rounded-xl font-label text-[0.75rem] uppercase tracking-[0.3em] font-bold hover:brightness-110 transition-all'>
+                            Finalize Request
+                        </button>
+                    </div>
+                </div>
+            </section>
+            <footer
+                class='bg-[#131313] w-full pt-24 pb-12 flex flex-col md:flex-row justify-between items-end px-20 gap-24'>
+                <div class='flex-1'>
+                    <div class='font-serif text-4xl text-[#e5e2e1] mb-12'>Green Desert</div>
+                    <p class='font-sans text-[0.875rem] leading-relaxed text-[#e5e2e1]/50 max-w-sm'>An ethereal oasis
+                        where gastronomy meets the soul of the desert.</p>
+                </div>
+                <div class='text-right'>
+                    <p class='font-serif text-[2rem] text-[#e9c349] mb-4'>Visit Us</p>
+                    <p class='font-sans text-[0.875rem] leading-relaxed text-[#e5e2e1]/50'>2424 Obsidian Way<br />Nevada
+                        Desert, NV 89001</p>
+                    <div class='mt-12 text-[#e5e2e1]/30 font-sans text-[0.6875rem] uppercase tracking-widest'>© 2024
+                        Green Desert.</div>
+                </div>
+            </footer>
+        </div>
+        </p>
+        <p>
+        <div id='booking-modal'>
+            <div class='modal-content'>
+                <span class='material-symbols-outlined'
+                    style='font-size: 4rem; color: #88d982; margin-bottom: 1rem;'>check_circle</span>
+                <h2 class='font-headline text-3xl mb-4'>Sanctuary Secured</h2>
+                <p class='font-body text-on-surface-variant mb-8'>Your reservation has been confirmed. We await your
+                    arrival.</p>
+                <button id='close-modal'
+                    class='bg-surface-container-highest px-8 py-3 rounded-xl font-label text-sm hover:bg-surface-variant transition-colors'>Return
+                    to Oasis</button>
+            </div>
+        </div>
+        <script>
+            document.querySelectorAll('.interactive-btn').forEach(btn => {
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const originalText = this.innerHTML;
+                    this.innerHTML = '<span class="material-symbols-outlined animate-spin" style="font-size:1.2rem; margin-right: 0.5rem;">sync</span> Processing...';
+                    this.style.opacity = '0.8';
+                    this.style.pointerEvents = 'none';
+
+                    setTimeout(() => {
+                        this.innerHTML = originalText;
+                        this.style.opacity = '1';
+                        this.style.pointerEvents = 'auto';
+                        document.getElementById('booking-modal').classList.add('active');
+                    }, 1500);
+                });
+            });
+            document.getElementById('close-modal').addEventListener('click', () => {
+                document.getElementById('booking-modal').classList.remove('active');
+            });
+        </script>
+        </p>
+    </div>
+    <script>
+        'use strict';
+
+        /* ── Custom Cursor ── */
+        (function initCursor() {
+            const cur = document.getElementById('cur');
+            const ring = document.getElementById('ring');
+
+            let mx = -100, my = -100; // start off-screen
+            let rx = -100, ry = -100;
+
+            document.addEventListener('mousemove', e => {
+                mx = e.clientX;
+                my = e.clientY;
+            });
+
+            // Slightly lag the ring with RAF for smoothness
+            function tick() {
+                cur.style.left = mx + 'px';
+                cur.style.top = my + 'px';
+
+                rx += (mx - rx) * 0.18;
+                ry += (my - ry) * 0.18;
+                ring.style.left = rx + 'px';
+                ring.style.top = ry + 'px';
+
+                requestAnimationFrame(tick);
+            }
+            requestAnimationFrame(tick);
+
+            // Enlarge ring on interactive elements
+            const interactables = 'a, button, [role="button"]';
+            document.querySelectorAll(interactables).forEach(el => {
+                el.addEventListener('mouseenter', () => {
+                    ring.style.transform = 'translate(-50%,-50%) scale(1.8)';
+                    ring.style.borderColor = 'rgba(200,255,0,0.6)';
+                });
+                el.addEventListener('mouseleave', () => {
+                    ring.style.transform = 'translate(-50%,-50%) scale(1)';
+                    ring.style.borderColor = 'rgba(255,255,255,0.4)';
+                });
+            });
+        })();
+
+
+        /* ── Animated Counter ── */
+        function animateCounter(el, target, duration, suffix) {
+            suffix = suffix || '';
+            const start = performance.now();
+            const startVal = 0;
+
+            function update(now) {
+                const elapsed = now - start;
+                const progress = Math.min(elapsed / duration, 1);
+                // Ease out cubic
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const current = Math.round(startVal + eased * (target - startVal));
+
+                el.textContent = current.toLocaleString() + suffix;
+
+                if (progress < 1) requestAnimationFrame(update);
+            }
+            requestAnimationFrame(update);
+        }
+
+        // Trigger counters when stats strip enters viewport
+        (function initCounters() {
+            const locEl = document.getElementById('stat-loc');
+            const devEl = document.getElementById('stat-devs');
+            let fired = false;
+
+            const observer = new IntersectionObserver(entries => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting && !fired) {
+                        fired = true;
+                        animateCounter(locEl, 28000, 1800);
+                        animateCounter(devEl, 847, 1400);
+                        observer.disconnect();
+                    }
+                });
+            }, { threshold: 0.4 });
+
+            observer.observe(document.querySelector('.stats-strip'));
+        })();
+
+
+        /* ── Marquee / Ticker ── */
+        (function initMarquee() {
+            const items = [
+                'SEMANTIC COMPILER',
+                'EPF WEB ENGINE',
+                'EPD PROTOCOL',
+                '3D ORBITAL ENGINE',
+                'SMART COLLECTIONS',
+                'SMART FILTER',
+                'BYTECODE VM — COMING v2.0',
+                'LLVM NATIVE — COMING v3.0',
+                'ZERO IMPORTS',
+                'PLAIN ENGLISH',
+                '28K LINES OF EPL',
+                '847 EARLY DEVS',
+            ];
+
+            const track = document.getElementById('marquee');
+
+            // Duplicate for seamless loop
+            const doubled = [...items, ...items];
+            doubled.forEach(text => {
+                const div = document.createElement('div');
+                div.className = 'marquee-item';
+                div.innerHTML = `<span aria-hidden="true">◆</span>${text}`;
+                track.appendChild(div);
+            });
+
+            // Calculate one full set width and set animation duration dynamically
+            // (CSS handles the animation; we just need the content)
+        })();
+
+
+        /* ── Scroll Reveal ── */
+        (function initReveal() {
+            const els = document.querySelectorAll('.reveal');
+
+            const observer = new IntersectionObserver(entries => {
+                entries.forEach((entry, i) => {
+                    if (entry.isIntersecting) {
+                        // Stagger cards in the same grid
+                        const delay = entry.target.closest('.features-grid')
+                            ? Array.from(entry.target.parentElement.children).indexOf(entry.target) * 80
+                            : 0;
+
+                        setTimeout(() => {
+                            entry.target.classList.add('visible');
+                        }, delay);
+
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.15 });
+
+            els.forEach(el => observer.observe(el));
+        })();
+
+
+        /* ── Nav: highlight current page ── */
+        (function highlightNav() {
+            const links = document.querySelectorAll('.nav-links a');
+            const path = window.location.pathname.split('/').pop() || 'index.html';
+
+            links.forEach(link => {
+                if (link.getAttribute('href') === path) {
+                    link.style.color = '#fff';
+                    link.setAttribute('aria-current', 'page');
+                }
+            });
+        })();
+
+
+        /* ── Nav: shrink and logo rotation on scroll ── */
+        (function initNavScroll() {
+            const nav = document.querySelector('.nav');
+            const logoImg = document.querySelector('.logo-img');
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 60) {
+                    nav.style.padding = '1rem 3rem';
+                } else {
+                    nav.style.padding = '1.5rem 3rem';
+                }
+
+                // Spin like a coin
+                if (logoImg) {
+                    const rot = window.scrollY * 0.5;
+                    logoImg.style.transform = `rotateY(${rot}deg)`;
+                }
+            }, { passive: true });
+        })();
+
+    </script>
+</body>
+
+</html>

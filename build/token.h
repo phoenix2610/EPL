@@ -179,6 +179,20 @@ typedef enum {
     TOKEN_HEADERS,         /* headers     */
     TOKEN_IMPORT,          /* import      */
 
+    /* v1.7 — HTML/DOM keywords */
+    TOKEN_DIV_KW,          /* div         */
+    TOKEN_SPAN_KW,         /* span        */
+    TOKEN_BUTTON_KW,       /* button      */
+    TOKEN_IMAGE_KW,        /* image       */
+    TOKEN_INPUT_KW,        /* input       */
+    TOKEN_ID_KW,           /* id          */
+    TOKEN_CLASS_KW,        /* class       */
+    TOKEN_SRC_KW,          /* src         */
+    TOKEN_ONCLICK_KW,      /* onclick     */
+    TOKEN_TYPE_KW,         /* type        */
+    TOKEN_PLACEHOLDER_KW,  /* placeholder */
+    TOKEN_VALUE_KW,        /* value       */
+
     /* v1.6 — 3D canvas keywords */
     TOKEN_CANVAS3D,        /* canvas3d   */
     TOKEN_ORBITAL,         /* orbital    */
@@ -198,6 +212,50 @@ typedef enum {
     TOKEN_FROM_GRAPH,      /* (from graph — multi-word, handled in parser) */
     TOKEN_VOID_BG,         /* void       */
     TOKEN_SPACE_BG,        /* space      */
+
+    /* ── EPF v2 COMPONENT KEYWORDS ── */
+    /* Phrases (registered in phrase_table, longest first) */
+    TOKEN_MAKE_NAVBAR,      /* make navbar                 */
+    TOKEN_MAKE_HERO,        /* make hero                   */
+    TOKEN_MAKE_GALLERY,     /* make gallery                */
+    TOKEN_MAKE_FORM,        /* make form                   */
+    TOKEN_MAKE_MODAL,       /* make modal                  */
+    TOKEN_MAKE_FOOTER,      /* make footer                 */
+    TOKEN_USE_DESIGN,       /* use design system           */
+    TOKEN_CONTENT_SECTION,  /* content section             */
+    TOKEN_OVERLAY_CARD,     /* overlay card                */
+    TOKEN_NAV_LINK,         /* nav link                    */
+    TOKEN_ACTION_BTN,       /* action button               */
+    TOKEN_LEFT_COL,         /* left column                 */
+    TOKEN_RIGHT_COL,        /* right column                */
+    TOKEN_ITEM_LIST_KW,     /* item list                   */
+    TOKEN_FEATURE_IMAGE,    /* feature image               */
+    TOKEN_PRICE_BADGE,      /* price badge                 */
+    TOKEN_SUBMIT_BTN,       /* submit button               */
+    TOKEN_DISMISS_BTN,      /* dismiss button              */
+    TOKEN_GUEST_PICKER,     /* guest picker                */
+    TOKEN_DATE_PICKER,      /* date picker                 */
+    TOKEN_OPEN_MODAL,       /* open modal                  */
+    TOKEN_ON_CLICK,         /* on click                    */
+    TOKEN_SHOW_LOADING,     /* show loading                */
+    /* Single-word EPF v2 keywords */
+    TOKEN_BRANDED,          /* branded                     */
+    TOKEN_EYEBROW,          /* eyebrow                     */
+    TOKEN_ACCENTED,         /* accented                    */
+    TOKEN_DIMMED,           /* dimmed                      */
+    TOKEN_ASPECT,           /* aspect                      */
+    TOKEN_COLUMNS,          /* columns                     */
+    TOKEN_OFFSET,           /* offset                      */
+    TOKEN_NUMBERED,         /* numbered                    */
+    TOKEN_DETAIL_KW,        /* detail                      */
+    TOKEN_TAGLINE,          /* tagline                     */
+    TOKEN_ADDRESS_KW,       /* address                     */
+    TOKEN_COPYRIGHT,        /* copyright                   */
+    TOKEN_FIELD,            /* field                       */
+    TOKEN_PLACEHOLDER_EPF,  /* placeholder (EPF context)   */
+    TOKEN_ENTRY_KW,         /* entry (list entry)          */
+    TOKEN_ICONS_KW,         /* icons                       */
+    TOKEN_FROSTED,          /* frosted                     */
 
     /* ── SYSTEM ── */
     TOKEN_EXECUTE,          /* execute                     */

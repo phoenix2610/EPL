@@ -74,6 +74,34 @@ ASTNode *parse_orbital_ring(Parser *p);
 ASTNode *parse_canvas3d(Parser *p);
 ASTNode *parse_panel3d(Parser *p);
 ASTNode *parse_drawer3d(Parser *p);
+
+/* HTML DOM Parsers (v1.7) */
+ASTNode *parse_html_element(Parser *p);
+
+/* EPF v2.0 Component Parsers */
+ASTNode *parse_use_design(Parser *p);
+ASTNode *parse_make_navbar(Parser *p);
+ASTNode *parse_nav_link(Parser *p);
+ASTNode *parse_action_btn(Parser *p);
+ASTNode *parse_make_hero(Parser *p);
+ASTNode *parse_overlay_card(Parser *p);
+ASTNode *parse_guest_picker(Parser *p);
+ASTNode *parse_date_picker(Parser *p);
+ASTNode *parse_content_section(Parser *p);
+ASTNode *parse_column(Parser *p, int is_right);
+ASTNode *parse_eyebrow(Parser *p);
+ASTNode *parse_item_list(Parser *p);
+ASTNode *parse_list_entry(Parser *p);
+ASTNode *parse_feature_image(Parser *p);
+ASTNode *parse_price_badge(Parser *p);
+ASTNode *parse_make_gallery(Parser *p);
+ASTNode *parse_gallery_image(Parser *p);
+ASTNode *parse_make_form(Parser *p);
+ASTNode *parse_form_field(Parser *p);
+ASTNode *parse_submit_btn(Parser *p);
+ASTNode *parse_make_modal(Parser *p);
+ASTNode *parse_dismiss_btn(Parser *p);
+ASTNode *parse_make_footer(Parser *p);
 /* ═════════════════════════════════════════════
    EXPRESSION PARSERS
    ═════════════════════════════════════════════ */

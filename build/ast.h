@@ -222,6 +222,34 @@ typedef enum {
     NODE_PANEL3D,          /* panel "position" ... ! */
     NODE_DRAWER3D,         /* drawer "position" titled "x" ... ! */
 
+    /* v1.7 — HTML/DOM Interpreter */
+    NODE_HTML_ELEMENT,     /* generic html element */
+
+    /* v2.0 — EPF High-Level Component System */
+    NODE_USE_DESIGN,       /* use design system "name" ... !               */
+    NODE_MAKE_NAVBAR,      /* make navbar branded as "X" styled as "Y" ... ! */
+    NODE_NAV_LINK,         /* nav link "label" at "href"                   */
+    NODE_ACTION_BTN,       /* action button "label" on click open modal "id" */
+    NODE_MAKE_HERO,        /* make hero titled "X" accented "Y" ... !      */
+    NODE_OVERLAY_CARD,     /* overlay card "title" ... !                   */
+    NODE_GUEST_PICKER,     /* guest picker default N                       */
+    NODE_DATE_PICKER,      /* date picker label "X"                        */
+    NODE_CONTENT_SECTION,  /* make content section id "X" ... !            */
+    NODE_COLUMN,           /* left column / right column ... !             */
+    NODE_EYEBROW,          /* eyebrow "text"                               */
+    NODE_ITEM_LIST,        /* item list ... !                              */
+    NODE_LIST_ENTRY,       /* entry "label" numbered N detail "x" [offset] */
+    NODE_FEATURE_IMAGE,    /* feature image "src" aspect "X" hover "Y"    */
+    NODE_PRICE_BADGE,      /* price badge "$X" label "Y"                  */
+    NODE_MAKE_GALLERY,     /* make gallery titled "X" columns N ... !      */
+    NODE_GALLERY_IMAGE,    /* image "src" [offset top N]                  */
+    NODE_MAKE_FORM,        /* make form "title" eyebrow "X" ... !         */
+    NODE_FORM_FIELD,       /* field text/email/textarea "label" placeholder "x" */
+    NODE_SUBMIT_BTN,       /* submit button "label" on click open modal "id" */
+    NODE_MAKE_MODAL,       /* make modal id "x" icon "y" color "z" ... !  */
+    NODE_DISMISS_BTN,      /* dismiss button "label"                       */
+    NODE_MAKE_FOOTER,      /* make footer branded as "X" ... !            */
+
 } NodeType;
 
 /* Forward declaration */
@@ -594,6 +622,176 @@ struct ASTNode {
             char          title[MAX_TOKEN_LEN];
             NodeList      children;
         } drawer3d;
+
+        /* NODE_HTML_ELEMENT  (v1.7) */
+        struct {
+            char     tag[MAX_TOKEN_LEN];
+            char     id_attr[MAX_TOKEN_LEN];
+            char     class_attr[MAX_TOKEN_LEN];
+            char     src_attr[MAX_TOKEN_LEN];
+            char     type_attr[MAX_TOKEN_LEN];
+            char     onclick_attr[MAX_TOKEN_LEN];
+            char     placeholder_attr[MAX_TOKEN_LEN];
+            char     value_attr[MAX_TOKEN_LEN];
+            int      is_self_closing;
+            ASTNode *text_content;  /* optional inner text expression */
+            NodeList children;
+        } html_element;
+
+        /* ── v2.0 EPF Component Structs ── */
+
+        /* NODE_USE_DESIGN */
+        struct {
+            char name[MAX_TOKEN_LEN];       /* "ethereal oasis" etc. */
+            char primary[MAX_TOKEN_LEN];    /* hex or css color */
+            char secondary[MAX_TOKEN_LEN];
+            char background[MAX_TOKEN_LEN];
+            char headline_font[MAX_TOKEN_LEN];
+            char body_font[MAX_TOKEN_LEN];
+            char icon_set[MAX_TOKEN_LEN];   /* "Material Symbols" */
+        } use_design;
+
+        /* NODE_MAKE_NAVBAR */
+        struct {
+            char     brand[MAX_TOKEN_LEN];  /* "Green Desert" */
+            char     style[MAX_TOKEN_LEN];  /* "frosted" etc. */
+            NodeList children;              /* NODE_NAV_LINK, NODE_ACTION_BTN */
+        } make_navbar;
+
+        /* NODE_NAV_LINK */
+        struct {
+            char label[MAX_TOKEN_LEN];
+            char href[MAX_TOKEN_LEN];
+        } nav_link;
+
+        /* NODE_ACTION_BTN */
+        struct {
+            char label[MAX_TOKEN_LEN];
+            char modal_id[MAX_TOKEN_LEN];   /* from "on click open modal X" */
+        } action_btn;
+
+        /* NODE_MAKE_HERO */
+        struct {
+            char     title[MAX_TOKEN_LEN];
+            char     accented[MAX_TOKEN_LEN];   /* word to italicize */
+            char     subtitle[MAX_TOKEN_LEN];
+            char     bg_image[MAX_TOKEN_LEN];
+            int      bg_dim;                    /* 0-100 */
+            ASTNode *overlay_card;              /* optional NODE_OVERLAY_CARD */
+        } make_hero;
+
+        /* NODE_OVERLAY_CARD */
+        struct {
+            char     title[MAX_TOKEN_LEN];
+            NodeList children;              /* pickers, action btns */
+        } overlay_card;
+
+        /* NODE_GUEST_PICKER */
+        struct {
+            int default_count;              /* e.g. 2 */
+        } guest_picker;
+
+        /* NODE_DATE_PICKER */
+        struct {
+            char label[MAX_TOKEN_LEN];      /* "Select Evening" */
+        } date_picker;
+
+        /* NODE_CONTENT_SECTION */
+        struct {
+            char     id[MAX_TOKEN_LEN];
+            ASTNode *left_col;
+            ASTNode *right_col;
+        } content_section;
+
+        /* NODE_COLUMN */
+        struct {
+            int      is_right;   /* 0=left, 1=right */
+            NodeList children;
+        } column;
+
+        /* NODE_EYEBROW */
+        struct {
+            char text[MAX_TOKEN_LEN];
+        } eyebrow;
+
+        /* NODE_ITEM_LIST */
+        struct {
+            NodeList entries;   /* NODE_LIST_ENTRY children */
+        } item_list;
+
+        /* NODE_LIST_ENTRY */
+        struct {
+            char label[MAX_TOKEN_LEN];
+            int  number;            /* display number e.g. 01 */
+            char detail[MAX_TOKEN_LEN];
+            int  offset;            /* 1 = apply md:translate-x-12 */
+        } list_entry;
+
+        /* NODE_FEATURE_IMAGE */
+        struct {
+            char src[MAX_TOKEN_LEN];
+            char aspect[MAX_TOKEN_LEN];     /* "4/5" "16/9" */
+            char hover_mode[MAX_TOKEN_LEN]; /* "reveal color" "zoom" */
+        } feature_image;
+
+        /* NODE_PRICE_BADGE */
+        struct {
+            char price[MAX_TOKEN_LEN];  /* "$285" */
+            char label[MAX_TOKEN_LEN];  /* "per guest" */
+        } price_badge;
+
+        /* NODE_MAKE_GALLERY */
+        struct {
+            char     title[MAX_TOKEN_LEN];
+            char     subtitle[MAX_TOKEN_LEN];
+            int      columns;
+            NodeList images;    /* NODE_GALLERY_IMAGE children */
+        } make_gallery;
+
+        /* NODE_GALLERY_IMAGE */
+        struct {
+            char src[MAX_TOKEN_LEN];
+            int  offset_top;    /* px offset e.g. 24 — 0 means none */
+        } gallery_image;
+
+        /* NODE_MAKE_FORM */
+        struct {
+            char     title[MAX_TOKEN_LEN];
+            char     eyebrow[MAX_TOKEN_LEN];
+            NodeList children;   /* NODE_FORM_FIELD + NODE_SUBMIT_BTN */
+        } make_form;
+
+        /* NODE_FORM_FIELD */
+        struct {
+            char field_type[MAX_TOKEN_LEN];     /* "text" "email" "textarea" */
+            char field_label[MAX_TOKEN_LEN];
+            char placeholder[MAX_TOKEN_LEN];
+        } form_field;
+
+        /* NODE_SUBMIT_BTN */
+        struct {
+            char label[MAX_TOKEN_LEN];
+            char modal_id[MAX_TOKEN_LEN];
+        } submit_btn;
+
+        /* NODE_MAKE_MODAL */
+        struct {
+            char     modal_id[MAX_TOKEN_LEN];
+            char     icon[MAX_TOKEN_LEN];       /* Material Symbol name */
+            char     color[MAX_TOKEN_LEN];      /* "primary" "secondary" */
+            char     heading[MAX_TOKEN_LEN];
+            char     body_text[MAX_TOKEN_LEN];
+            char     dismiss_label[MAX_TOKEN_LEN];
+        } make_modal;
+
+        /* NODE_MAKE_FOOTER */
+        struct {
+            char brand[MAX_TOKEN_LEN];
+            char tagline[MAX_TOKEN_LEN];
+            char contact_heading[MAX_TOKEN_LEN];
+            char address[MAX_TOKEN_LEN];
+            char copyright[MAX_TOKEN_LEN];
+        } make_footer;
 
     } as;
 };

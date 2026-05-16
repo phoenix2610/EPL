@@ -1,0 +1,8 @@
+make page saved as "test_v17.html" styled as "solo leveling"
+    div id "main" class "container"
+        span class "text-glow" "Hello World" !
+        button onclick "alert('hello')" "Click Me" !
+        image src "https://example.com/img.png" class "logo"
+        input type "text" placeholder "Enter name"
+    !
+!

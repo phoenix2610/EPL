@@ -3,7 +3,7 @@
   <h1>EPL — English Programming Language</h1>
   <p><em>"Your thoughts are the syntax."</em></p>
 
-  [![Version](https://img.shields.io/badge/version-1.6-blue.svg)](#)
+  [![Version](https://img.shields.io/badge/version-1.7-blue.svg)](#)
   [![Build](https://img.shields.io/badge/build-passing-brightgreen.svg)](#)
   [![Language](https://img.shields.io/badge/language-C11-orange.svg)](#)
   
@@ -36,7 +36,7 @@ Human thought → EPL → C Interpreter → Execution
 
 ### Why EPL?
 EPL boasts superior **semantic token density**. Every token is signal, making EPL **5-6x more efficient** for LLMs to read than standard Python. 
-With features like **`.EPD` (Semantic Indexes)** and our new **v1.6 3D Frontend Engine**, LLMs can instantly understand your codebase and generate rich, interactive visualizations directly from English.
+With features like **`.EPD` (Semantic Indexes)** and our new **v1.7 High-Fidelity Frontend Generation**, LLMs can instantly understand your codebase and generate rich, interactive visualizations directly from English.
 
 <details>
 <summary><strong>🔍 Click to see how Semantic Indexing (.EPD) works</strong></summary>
@@ -164,7 +164,7 @@ EPL handles the entire stack in one human-readable syntax:
 | Extension | Purpose | Output |
 |-----------|---------|---------|
 | **`.EP`** | Logic, backend computation | Terminal Execution |
-| **`.EPF`** | Frontend Dashboards & 3D Scenes (v1.6) | Live `.html` & 3D WebGL files |
+| **`.EPF`** | Frontend Dashboards & 3D Scenes (v1.7) | Live `.html` & 3D WebGL files |
 | **`.EPD`** | Semantic Index (v1.5) | Read-only LLM context |
 
 <details>
@@ -195,6 +195,12 @@ make scene saved as "orbital.html"
     draw node at angle 45 distance 150 named "Task A"
 !
 ```
+</details>
+
+<details>
+<summary><strong>✨ High-Fidelity Multi-Page Frontends (v1.7)</strong></summary>
+
+v1.7 introduces a sophisticated asset injection pipeline, automatic full-page responsive layouts, industrial micro-interactions (like scroll reveals and magnetic cursors), and an intelligent "Apex" Navigation System across all generated `make page` sites. No extra CSS/JS boilerplate required!
 </details>
 
 ---
