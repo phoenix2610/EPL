@@ -5,39 +5,19 @@
 #include "lexer.h"
 #include "ast.h"
 
-/* ─────────────────────────────────────────────
-   EPL Parser — parser.h
-   Takes a token stream and builds an AST.
-   ───────────────────────────────────────────── */
-
-
-/* ═════════════════════════════════════════════
-   PARSER STRUCT
-   Walks the token array produced by the lexer.
-   ═════════════════════════════════════════════ */
 typedef struct {
-    Token  *tokens;         /* full token array from lexer          */
-    int     count;          /* total token count                    */
-    int     current;        /* current position in token array      */
-    int     had_error;      /* error flag — set on first error      */
-    int     panic_mode;     /* panic mode — skip until sync point   */
+    Token  *tokens;
+    int     count;
+    int     current;
+    int     had_error;
+    int     panic_mode;
+    int     no_times_op;
 } Parser;
 
-
-/* ═════════════════════════════════════════════
-   PARSER LIFECYCLE
-   ═════════════════════════════════════════════ */
-
-/* Initialize parser with token array */
 void parser_init(Parser *p, Token *tokens, int count);
 
-/* Parse entire token stream, return root AST node */
 ASTNode *parser_parse(Parser *p);
 
-
-/* ═════════════════════════════════════════════
-   STATEMENT PARSERS
-   ═════════════════════════════════════════════ */
 ASTNode *parse_statement(Parser *p);
 ASTNode *parse_set(Parser *p);
 ASTNode *parse_update(Parser *p);
@@ -47,6 +27,10 @@ ASTNode *parse_while(Parser *p);
 ASTNode *parse_repeat(Parser *p);
 ASTNode *parse_for(Parser *p);
 ASTNode *parse_activity_def(Parser *p);
+ASTNode *parse_import(Parser *p);
+ASTNode *parse_db_make_table(Parser *p);
+ASTNode *parse_db_save(Parser *p);
+ASTNode *parse_db_delete(Parser *p);
 ASTNode *parse_return(Parser *p);
 ASTNode *parse_check(Parser *p);
 ASTNode *parse_describe(Parser *p);
@@ -55,9 +39,8 @@ ASTNode *parse_attempt(Parser *p);
 ASTNode *parse_add_to(Parser *p);
 ASTNode *parse_wait(Parser *p);
 ASTNode *parse_execute(Parser *p);
-ASTNode *parse_link(Parser *p);   /* v1.3 */
+ASTNode *parse_link(Parser *p);
 
-/* EPF Statement Parsers (v1.4) */
 ASTNode *parse_text_node(Parser *p, NodeType type);
 ASTNode *parse_section(Parser *p);
 ASTNode *parse_row(Parser *p);
@@ -67,7 +50,6 @@ ASTNode *parse_make_table_out(Parser *p);
 ASTNode *parse_make_report(Parser *p);
 ASTNode *parse_make_page(Parser *p);
 
-/* 3D Canvas Parsers (v1.6) */
 ASTNode *parse_node3d(Parser *p);
 ASTNode *parse_core_star(Parser *p);
 ASTNode *parse_orbital_ring(Parser *p);
@@ -75,10 +57,8 @@ ASTNode *parse_canvas3d(Parser *p);
 ASTNode *parse_panel3d(Parser *p);
 ASTNode *parse_drawer3d(Parser *p);
 
-/* HTML DOM Parsers (v1.7) */
 ASTNode *parse_html_element(Parser *p);
 
-/* EPF v2.0 Component Parsers */
 ASTNode *parse_use_design(Parser *p);
 ASTNode *parse_make_navbar(Parser *p);
 ASTNode *parse_nav_link(Parser *p);
@@ -102,9 +82,15 @@ ASTNode *parse_submit_btn(Parser *p);
 ASTNode *parse_make_modal(Parser *p);
 ASTNode *parse_dismiss_btn(Parser *p);
 ASTNode *parse_make_footer(Parser *p);
-/* ═════════════════════════════════════════════
-   EXPRESSION PARSERS
-   ═════════════════════════════════════════════ */
+
+ASTNode *parse_write_file(Parser *p, NodeType kind);
+ASTNode *parse_delete_file(Parser *p);
+ASTNode *parse_sleep(Parser *p);
+ASTNode *parse_serve_socket(Parser *p);
+ASTNode *parse_serve_port(Parser *p);
+ASTNode *parse_make_button(Parser *p);
+ASTNode *parse_reply_with(Parser *p);
+
 ASTNode *parse_expression(Parser *p);
 ASTNode *parse_inline_if(Parser *p);
 ASTNode *parse_logical(Parser *p);
@@ -115,12 +101,6 @@ ASTNode *parse_unary(Parser *p);
 ASTNode *parse_primary(Parser *p);
 ASTNode *parse_list_literal(Parser *p);
 
-
-/* ═════════════════════════════════════════════
-   BLOCK PARSER
-   Reads statements until TOKEN_TERMINATOR (!)
-   ═════════════════════════════════════════════ */
 void parse_block(Parser *p, NodeList *list);
 
-
-#endif /* PARSER_H */
+#endif

@@ -1,5 +1,3 @@
-### EPL Calculator v1.0 ###
-
 describe calc as "A simple CLI calculator with history"
 
 set history as []

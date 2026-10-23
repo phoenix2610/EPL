@@ -5,11 +5,6 @@
 #include <time.h>
 #include "binding.h"
 
-/* ─────────────────────────────────────────────
-   EPL Live Binding — binding.c  (v1.4)
-   Writes/updates .epbind JSON next to source
-   ───────────────────────────────────────────── */
-
 #define BIND_FILE ".epbind"
 #define MAX_OUTPUTS 64
 #define MAX_PATH    512
@@ -33,7 +28,6 @@ static void binding_load(void) {
     while (fgets(line, sizeof(line), f)) {
         if (strstr(line, "\"file\"")) {
             BindEntry e = {0};
-            /* parse "source": "w", "file": "x", "type": "y", "updated": "z" */
             char *sp = strstr(line, "\"source\": \"");
             char *fp = strstr(line, "\"file\": \"");
             char *tp = strstr(line, "\"type\": \"");
@@ -49,7 +43,6 @@ static void binding_load(void) {
     fclose(f);
 }
 
-/* Save .epbind */
 static void binding_save(void) {
     FILE *f = fopen(BIND_FILE, "w");
     if (!f) return;
@@ -68,21 +61,18 @@ static void binding_save(void) {
     fclose(f);
 }
 
-/* Get current timestamp string */
 static void now_string(char *buf, int len) {
     time_t t = time(NULL);
     struct tm *tm = localtime(&t);
     strftime(buf, len, "%Y-%m-%d %H:%M:%S", tm);
 }
 
-/* Add or update an output entry */
 void binding_update(const char *source_file, const char *output_file, const char *type) {
     binding_load();
 
     char ts[32];
     now_string(ts, sizeof(ts));
 
-    /* check if already exists */
     for (int i = 0; i < entry_count; i++) {
         if (strcmp(entries[i].file, output_file) == 0) {
             strncpy(entries[i].source,  source_file, MAX_PATH - 1);
@@ -92,7 +82,6 @@ void binding_update(const char *source_file, const char *output_file, const char
         }
     }
 
-    /* new entry */
     if (entry_count < MAX_OUTPUTS) {
         strncpy(entries[entry_count].source,  source_file, MAX_PATH - 1);
         strncpy(entries[entry_count].file,    output_file, MAX_PATH - 1);
@@ -104,13 +93,11 @@ void binding_update(const char *source_file, const char *output_file, const char
     binding_save();
 }
 
-/* Remove an entry from .epbind (called when a page is deleted) */
 void binding_remove(const char *output_file) {
     binding_load();
     int found = 0;
     for (int i = 0; i < entry_count; i++) {
         if (strcmp(entries[i].file, output_file) == 0) {
-            /* Shift remaining entries down */
             for (int j = i; j < entry_count - 1; j++)
                 entries[j] = entries[j + 1];
             entry_count--;
@@ -121,8 +108,6 @@ void binding_remove(const char *output_file) {
     if (found) binding_save();
 }
 
-/* Return a snapshot of all tracked HTML filenames FOR THIS SOURCE FILE.
-   Caller provides buf (array of MAX_OUTPUTS strings) and receives count. */
 int binding_get_html_files(const char *source_file, char out[][512], int max_out) {
     binding_load();
     int n = 0;
@@ -137,7 +122,6 @@ int binding_get_html_files(const char *source_file, char out[][512], int max_out
     return n;
 }
 
-/* List all bound outputs */
 void binding_list(void) {
     binding_load();
     if (entry_count == 0) {
@@ -151,4 +135,15 @@ void binding_list(void) {
             entries[i].file,
             entries[i].updated);
     }
+}
+
+int binding_source_of(const char *output_file, char *out, int outlen) {
+    binding_load();
+    for (int i = 0; i < entry_count; i++) {
+        if (strcmp(entries[i].file, output_file) == 0 && entries[i].source[0]) {
+            snprintf(out, outlen, "%s", entries[i].source);
+            return 1;
+        }
+    }
+    return 0;
 }

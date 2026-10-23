@@ -1,9 +1,3 @@
-
-/* ═══════════════════════════════════════════
-   EPF v2.0 COMPONENT CODE GENERATORS
-   ═══════════════════════════════════════════ */
-
-/* ── Design system context (populated by NODE_USE_DESIGN) ── */
 typedef struct {
     char primary[64];
     char secondary[64];
@@ -19,7 +13,6 @@ static DesignCtx g_design = {
     "Noto Serif", "Inter", "Material Symbols", 1
 };
 
-/* Inject Tailwind + Google Fonts + Material Icons head block */
 static void gen_use_design(CodegenCtx *ctx, ASTNode *node) {
     if (strlen(node->as.use_design.primary)       > 0)
         strncpy(g_design.primary,       node->as.use_design.primary,       63);
@@ -32,7 +25,6 @@ static void gen_use_design(CodegenCtx *ctx, ASTNode *node) {
     if (strlen(node->as.use_design.body_font)     > 0)
         strncpy(g_design.body_font,     node->as.use_design.body_font,     63);
 
-    /* Output CDN links + Tailwind config */
     fprintf(ctx->out,
         "<script src='https://cdn.tailwindcss.com?plugins=forms,container-queries'></script>\n"
         "<link href='https://fonts.googleapis.com/css2?family=%s:ital,wght@0,400;0,700;1,400"
@@ -61,15 +53,14 @@ static void gen_use_design(CodegenCtx *ctx, ASTNode *node) {
         "'on-secondary-container':'#342800'},"
         "fontFamily:{'headline':['%s'],'body':['%s'],'label':['%s']}}}}</script>\n",
         g_design.headline_font, g_design.body_font,
-        g_design.background, g_design.primary,   /* modal bg/border */
-        g_design.primary, g_design.primary,       /* primary-fixed-dim, primary-fixed */
-        g_design.background, g_design.background, /* surface, background */
-        g_design.secondary,                        /* secondary */
+        g_design.background, g_design.primary,
+        g_design.primary, g_design.primary,
+        g_design.background, g_design.background,
+        g_design.secondary,
         g_design.headline_font, g_design.body_font, g_design.body_font
     );
 }
 
-/* ── NAVBAR ── */
 static void gen_make_navbar(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out,
         "<div id='tailwind-wrapper' class='bg-surface text-on-surface font-body"
@@ -101,7 +92,6 @@ static void gen_make_navbar(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out, "</div>\n</nav>\n");
 }
 
-/* ── HERO ── */
 static void gen_make_hero(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out,
         "<header class='relative h-screen w-full flex items-center overflow-hidden'>\n"
@@ -168,14 +158,12 @@ static void gen_make_hero(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out, "</div>\n</header>\n");
 }
 
-/* ── CONTENT SECTION ── */
 static void gen_content_section(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out,
         "<section id='%s' class='py-48 px-12 md:px-24 max-w-[1920px] mx-auto overflow-hidden'>\n"
         "<div class='grid grid-cols-1 md:grid-cols-12 gap-24 items-start'>\n",
         node->as.content_section.id);
 
-    /* Left column */
     if (node->as.content_section.left_col) {
         fprintf(ctx->out, "<div class='md:col-span-5 space-y-24'>\n");
         ASTNode *col = node->as.content_section.left_col;
@@ -184,7 +172,6 @@ static void gen_content_section(CodegenCtx *ctx, ASTNode *node) {
         fprintf(ctx->out, "</div>\n");
     }
 
-    /* Right column */
     if (node->as.content_section.right_col) {
         fprintf(ctx->out, "<div class='md:col-span-7 relative'>\n");
         ASTNode *col = node->as.content_section.right_col;
@@ -195,7 +182,6 @@ static void gen_content_section(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out, "</div>\n</section>\n");
 }
 
-/* ── EYEBROW ── */
 static void gen_eyebrow(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out,
         "<span class='font-label text-[0.6875rem] uppercase tracking-[0.4em]"
@@ -203,7 +189,6 @@ static void gen_eyebrow(CodegenCtx *ctx, ASTNode *node) {
         node->as.eyebrow.text);
 }
 
-/* ── ITEM LIST ── */
 static void gen_item_list(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out, "<div class='space-y-16 pl-8 border-l border-outline-variant/20'>\n");
     for (int i = 0; i < node->as.item_list.entries.count; i++) {
@@ -223,7 +208,6 @@ static void gen_item_list(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out, "</div>\n");
 }
 
-/* ── FEATURE IMAGE ── */
 static void gen_feature_image(CodegenCtx *ctx, ASTNode *node) {
     const char *aspect = strlen(node->as.feature_image.aspect) > 0
                          ? node->as.feature_image.aspect : "4/5";
@@ -237,7 +221,6 @@ static void gen_feature_image(CodegenCtx *ctx, ASTNode *node) {
         node->as.feature_image.src);
 }
 
-/* ── PRICE BADGE ── */
 static void gen_price_badge(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out,
         "<div class='absolute -bottom-12 -left-12 glass-card p-12 rounded-xl hidden md:block'>\n"
@@ -249,7 +232,6 @@ static void gen_price_badge(CodegenCtx *ctx, ASTNode *node) {
         node->as.price_badge.price, node->as.price_badge.label);
 }
 
-/* ── GALLERY ── */
 static void gen_make_gallery(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out,
         "<section class='py-48 bg-surface-container-low/30'>\n"
@@ -278,7 +260,6 @@ static void gen_make_gallery(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out, "</div>\n</section>\n");
 }
 
-/* ── FORM ── */
 static void gen_make_form(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out,
         "<section class='py-48 px-12 md:px-24 flex flex-col items-center"
@@ -337,7 +318,6 @@ static void gen_make_form(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out, "</div></div></section>\n");
 }
 
-/* ── MODAL ── */
 static void gen_make_modal(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out,
         "<div id='%s'>\n"
@@ -381,7 +361,6 @@ static void gen_make_modal(CodegenCtx *ctx, ASTNode *node) {
         node->as.make_modal.modal_id);
 }
 
-/* ── FOOTER ── */
 static void gen_make_footer(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out,
         "<footer class='bg-[%s] w-full pt-24 pb-12 flex flex-col md:flex-row"
@@ -397,7 +376,7 @@ static void gen_make_footer(CodegenCtx *ctx, ASTNode *node) {
         " uppercase tracking-widest'>© %s</div>\n"
         "</div>\n"
         "</footer>\n"
-        "</div>\n", /* close tailwind-wrapper */
+        "</div>\n",
         g_design.background,
         node->as.make_footer.brand,
         node->as.make_footer.tagline,

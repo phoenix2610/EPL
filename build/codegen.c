@@ -2,29 +2,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "codegen.h"
 #include "binding.h"
 #include "scene_gen.h"
 
-/* ─────────────────────────────────────────────
-   EPL Code Generator — codegen.c  (v1.7)
-   Multi-page framework with built-in navigation
-   ───────────────────────────────────────────── */
-
-
-/* ═════════════════════════════════════════════
-   THEMES
-   ═════════════════════════════════════════════ */
-/* ── Friendly multi-word color name → CSS value lookup ── */
 static const char *resolve_color_name(const char *name) {
     static const struct { const char *alias; const char *css; } map[] = {
-        /* reds / pinks */
         {"hot pink",          "hotpink"},
         {"deep pink",         "deeppink"},
         {"pale pink",         "lightpink"},
         {"coral",             "coral"},
         {"salmon",            "salmon"},
-        /* purples / blues */
         {"persian blue",      "#1c39bb"},
         {"royal blue",        "royalblue"},
         {"navy blue",         "navy"},
@@ -38,19 +27,16 @@ static const char *resolve_color_name(const char *name) {
         {"plum",              "plum"},
         {"orchid",            "orchid"},
         {"medium purple",     "mediumpurple"},
-        /* greens */
         {"forest green",      "forestgreen"},
         {"lime green",        "limegreen"},
         {"olive green",       "olive"},
         {"teal",              "teal"},
         {"sea green",         "seagreen"},
         {"mint green",        "#98ff98"},
-        /* oranges / yellows */
         {"gold",              "gold"},
         {"orange red",        "orangered"},
         {"dark orange",       "darkorange"},
         {"amber",             "#ffbf00"},
-        /* neutrals */
         {"slate gray",        "slategray"},
         {"charcoal",          "#36454f"},
         {"ivory",             "ivory"},
@@ -59,7 +45,7 @@ static const char *resolve_color_name(const char *name) {
     for (int i = 0; map[i].alias; i++) {
         if (strcmp(name, map[i].alias) == 0) return map[i].css;
     }
-    return name;   /* pass through as-is (hex, single-word CSS name, etc.) */
+    return name;
 }
 
 ThemeCSS codegen_get_theme(EPFTheme theme, const char *custom_color) {
@@ -98,8 +84,6 @@ ThemeCSS codegen_get_theme(EPFTheme theme, const char *custom_color) {
             t.border  = "#fecdd3";
             break;
         case THEME_CUSTOM: {
-            /* Derive a clean, consistent light palette from the custom color.
-               The color becomes accent + subtext; bg/surface/border stay neutral. */
             static char acc[64];
             strncpy(acc, resolve_color_name(custom_color), 63);
             if (strcmp(custom_color, "solo leveling") == 0) {
@@ -119,7 +103,7 @@ ThemeCSS codegen_get_theme(EPFTheme theme, const char *custom_color) {
             }
             break;
         }
-        default: /* THEME_LIGHT */
+        default:
             t.bg      = "#f8fafc";
             t.surface = "#ffffff";
             t.text    = "#0f172a";
@@ -128,7 +112,6 @@ ThemeCSS codegen_get_theme(EPFTheme theme, const char *custom_color) {
             t.border  = "#e2e8f0";
             break;
     }
-    /* override accent with explicit 'with color "..."' if provided */
     if (custom_color && strlen(custom_color) > 0 && theme != THEME_CUSTOM)
         t.accent = custom_color;
 
@@ -150,15 +133,10 @@ ThemeCSS codegen_get_theme(EPFTheme theme, const char *custom_color) {
     return t;
 }
 
-
-/* ═════════════════════════════════════════════
-   HELPERS
-   ═════════════════════════════════════════════ */
 static void indent(CodegenCtx *ctx) {
     for (int i = 0; i < ctx->indent; i++) fprintf(ctx->out, "  ");
 }
 
-/* Write a value as a JS array literal string */
 static void write_js_array(CodegenCtx *ctx, Value *list) {
     fprintf(ctx->out, "[");
     if (list && list->type == VAL_LIST) {
@@ -182,12 +160,21 @@ static void write_js_array(CodegenCtx *ctx, Value *list) {
     fprintf(ctx->out, "]");
 }
 
-/* Helper to inject external files like css/base.css into the HTML */
 static void inject_file_content(CodegenCtx *ctx, const char *path) {
     FILE *f = fopen(path, "r");
     if (!f) {
-        /* Silently ignore if file missing, or could print a warning */
-        return;
+        char exe[4096];
+        ssize_t n = readlink("/proc/self/exe", exe, sizeof exe - 1);
+        if (n > 0) {
+            exe[n] = '\0';
+            char *slash = strrchr(exe, '/');
+            if (slash) {
+                char alt[4600];
+                snprintf(alt, sizeof alt, "%.*s/%s", (int)(slash - exe), exe, path);
+                f = fopen(alt, "r");
+            }
+        }
+        if (!f) return;
     }
     char buf[1024];
     size_t n;
@@ -197,11 +184,6 @@ static void inject_file_content(CodegenCtx *ctx, const char *path) {
     fclose(f);
 }
 
-
-
-/* ═════════════════════════════════════════════
-   HTML HEAD — embedded CSS + Chart.js CDN
-   ═════════════════════════════════════════════ */
 static void write_head(CodegenCtx *ctx, const char *title, const char *custom_color) {
     fprintf(ctx->out,
         "<!DOCTYPE html>\n"
@@ -215,7 +197,7 @@ static void write_head(CodegenCtx *ctx, const char *title, const char *custom_co
         title
     );
     inject_file_content(ctx, "css/epl_base.css");
-    
+
     if (custom_color && strcmp(custom_color, "solo leveling") == 0) {
         fprintf(ctx->out, "  body, .epl-page { background: #0b0914 !important; color: #e2d8f0; }\n");
         fprintf(ctx->out, "  .nav { background: rgba(11, 9, 20, 0.85) !important; border-bottom: 1px solid rgba(192, 38, 211, 0.3) !important; }\n");
@@ -243,27 +225,44 @@ static void write_head(CodegenCtx *ctx, const char *title, const char *custom_co
     );
 }
 
+static const char *ACTION_JS =
+"(function(){\n"
+"function show(v){if(Array.isArray(v))return v.map(show).join(', ');"
+"if(v&&typeof v==='object')return Object.keys(v).map(k=>k+': '+show(v[k])).join(' \u00b7 ');"
+"return v===null?'done':String(v);}\n"
+"document.querySelectorAll('[data-epl-act]').forEach(function(el){\n"
+"  var form=el.tagName==='FORM', btn=el.querySelector('button');\n"
+"  var out=el.querySelector('.epl-reply');\n"
+"  async function run(e){e.preventDefault();var body={};\n"
+"    if(form)el.querySelectorAll('input').forEach(function(i){var v=i.value.trim();"
+"body[i.name]=(v!==''&&!isNaN(v))?Number(v):v;});\n"
+"    btn.disabled=true;var r;\n"
+"    try{var res=await fetch('/epl/'+encodeURIComponent(el.dataset.eplAct),{method:'POST',"
+"headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});r=await res.json();}\n"
+"    catch(x){r={ok:false,error:'cannot reach the backend \u2014 start it (epl server.EP) and open this page from it'};}\n"
+"    btn.disabled=false;\n"
+"    if(!r.ok){out.textContent=r.error;out.className='epl-reply err';return;}\n"
+"    if(el.dataset.eplAfter==='refresh')location.reload();\n"
+"    else if(el.dataset.eplAfter==='go')location.href=el.dataset.eplGo;\n"
+"    else{out.textContent=show(r.reply);out.className='epl-reply ok';"
+"if(form)el.reset();}}\n"
+"  if(form)el.addEventListener('submit',run);else btn.addEventListener('click',run);\n"
+"});})();\n";
+
 static void write_foot(CodegenCtx *ctx) {
     fprintf(ctx->out, "</div>\n<script>\n");
     inject_file_content(ctx, "js/app.js");
-    fprintf(ctx->out, "\n</script>\n</body>\n</html>\n");
+    fprintf(ctx->out, "\n</script>\n");
+    if (ctx->actions) fprintf(ctx->out, "<script>\n%s</script>\n", ACTION_JS);
+    fprintf(ctx->out, "</body>\n</html>\n");
 }
 
-
-/* ═════════════════════════════════════════════
-   MULTIPAGE SHELL — nav bar + sidebar
-   Written immediately after <body> when the
-   manifest contains more than one page.
-   ═════════════════════════════════════════════ */
-
-/* Icon set cycled per page index */
 static const char *page_icons[] = {
     "&#9673;", "&#9671;", "&#9672;", "&#9670;", "&#9674;",
     "&#9650;", "&#9660;", "&#9668;", "&#9658;", "&#9632;"
 };
 
 static void write_shell_open(CodegenCtx *ctx, PageManifest *mf) {
-    /* ── Top nav bar with links ── */
     fprintf(ctx->out,
         "<style>\n"
         "  .nav { position: fixed; top: 0; width: 100%%; z-index: 1000; padding: 1.5rem 3rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(5,5,8,0.85); backdrop-filter: blur(20px); transition: padding 0.3s ease; }\n"
@@ -288,9 +287,8 @@ static void write_shell_open(CodegenCtx *ctx, PageManifest *mf) {
     int ai = mf->active;
     for (int i = 0; i < mf->count; i++) {
         const char *cls = (i == ai) ? " active" : "";
-        /* Optionally skip signup.html from normal links if it's the CTA */
         if (strcmp(mf->pages[i].filename, "signup.html") == 0) continue;
-        
+
         fprintf(ctx->out,
             "    <a href=\"%s\" class=\"%s\">%s</a>\n",
             mf->pages[i].filename, cls, mf->pages[i].label
@@ -306,13 +304,9 @@ static void write_shell_open(CodegenCtx *ctx, PageManifest *mf) {
 }
 
 static void write_shell_close(CodegenCtx *ctx) {
-    fprintf(ctx->out, "</div>\n");   /* close epl-main */
+    fprintf(ctx->out, "</div>\n");
 }
 
-
-/* ═════════════════════════════════════════════
-   NODE GENERATORS
-   ═════════════════════════════════════════════ */
 static void gen_heading(CodegenCtx *ctx, ASTNode *node) {
     Value *v = eval(ctx->interp, node->as.text_out.value, ctx->env);
     char  *s = val_to_string(v);
@@ -471,7 +465,6 @@ static void gen_table(CodegenCtx *ctx, ASTNode *node) {
     indent(ctx); fprintf(ctx->out, "<table>\n");
     ctx->indent++;
 
-    /* Header row */
     if (headers && headers->type == VAL_LIST && headers->as.list->count > 0) {
         indent(ctx); fprintf(ctx->out, "<thead><tr>\n");
         ctx->indent++;
@@ -484,7 +477,6 @@ static void gen_table(CodegenCtx *ctx, ASTNode *node) {
         indent(ctx); fprintf(ctx->out, "</tr></thead>\n");
     }
 
-    /* Body rows */
     indent(ctx); fprintf(ctx->out, "<tbody>\n");
     ctx->indent++;
     if (data && data->type == VAL_LIST) {
@@ -493,14 +485,12 @@ static void gen_table(CodegenCtx *ctx, ASTNode *node) {
             indent(ctx); fprintf(ctx->out, "<tr>\n");
             ctx->indent++;
             if (row->type == VAL_LIST) {
-                /* Row is a list — multiple columns */
                 for (int j = 0; j < row->as.list->count; j++) {
                     char *cell = val_to_string(row->as.list->items[j]);
                     indent(ctx); fprintf(ctx->out, "<td>%s</td>\n", cell);
                     free(cell);
                 }
             } else {
-                /* Row is a scalar — single column */
                 char *cell = val_to_string(row);
                 indent(ctx); fprintf(ctx->out, "<td>%s</td>\n", cell);
                 free(cell);
@@ -531,7 +521,6 @@ static void gen_report(CodegenCtx *ctx, ASTNode *node) {
         fprintf(ctx->out, "<h3>%s</h3>\n", node->as.make_report.title);
     }
 
-    /* Show stats for numeric lists */
     if (data && data->type == VAL_LIST && data->as.list->count > 0) {
         double sum = 0, mx = -1e300, mn = 1e300;
         int    numeric = 0;
@@ -594,11 +583,10 @@ static void gen_row(CodegenCtx *ctx, ASTNode *node) {
     indent(ctx); fprintf(ctx->out, "</div>\n");
 }
 
-
 static void gen_html_element(CodegenCtx *ctx, ASTNode *node) {
     indent(ctx);
     fprintf(ctx->out, "<%s", node->as.html_element.tag);
-    
+
     if (strlen(node->as.html_element.id_attr) > 0)
         fprintf(ctx->out, " id=\"%s\"", node->as.html_element.id_attr);
     if (strlen(node->as.html_element.class_attr) > 0)
@@ -613,14 +601,14 @@ static void gen_html_element(CodegenCtx *ctx, ASTNode *node) {
         fprintf(ctx->out, " placeholder=\"%s\"", node->as.html_element.placeholder_attr);
     if (strlen(node->as.html_element.value_attr) > 0)
         fprintf(ctx->out, " value=\"%s\"", node->as.html_element.value_attr);
-        
+
     if (node->as.html_element.is_self_closing) {
         fprintf(ctx->out, " />\n");
         return;
     }
-    
+
     fprintf(ctx->out, ">");
-    
+
     if (node->as.html_element.text_content) {
         Value *val = eval(ctx->interp, node->as.html_element.text_content, ctx->env);
         char *str = val_to_string(val);
@@ -628,7 +616,7 @@ static void gen_html_element(CodegenCtx *ctx, ASTNode *node) {
         free(str);
         val_free(val);
     }
-    
+
     if (node->as.html_element.children.count > 0) {
         fprintf(ctx->out, "\n");
         ctx->indent++;
@@ -638,15 +626,10 @@ static void gen_html_element(CodegenCtx *ctx, ASTNode *node) {
         ctx->indent--;
         indent(ctx);
     }
-    
+
     fprintf(ctx->out, "</%s>\n", node->as.html_element.tag);
 }
 
-/* ═══════════════════════════════════════════
-   EPF v2.0 COMPONENT CODE GENERATORS
-   ═══════════════════════════════════════════ */
-
-/* ── Design system context (populated by NODE_USE_DESIGN) ── */
 typedef struct {
     char primary[64];
     char secondary[64];
@@ -662,7 +645,6 @@ static DesignCtx g_design = {
     "Noto Serif", "Inter", "Material Symbols", 1
 };
 
-/* Inject Tailwind + Google Fonts + Material Icons head block */
 static void gen_use_design(CodegenCtx *ctx, ASTNode *node) {
     if (strlen(node->as.use_design.primary)       > 0)
         strncpy(g_design.primary,       node->as.use_design.primary,       63);
@@ -675,7 +657,6 @@ static void gen_use_design(CodegenCtx *ctx, ASTNode *node) {
     if (strlen(node->as.use_design.body_font)     > 0)
         strncpy(g_design.body_font,     node->as.use_design.body_font,     63);
 
-    /* Output CDN links + Tailwind config */
     fprintf(ctx->out,
         "<script src='https://cdn.tailwindcss.com?plugins=forms,container-queries'></script>\n"
         "<link href='https://fonts.googleapis.com/css2?family=%s:ital,wght@0,400;0,700;1,400"
@@ -704,15 +685,14 @@ static void gen_use_design(CodegenCtx *ctx, ASTNode *node) {
         "'on-secondary-container':'#342800'},"
         "fontFamily:{'headline':['%s'],'body':['%s'],'label':['%s']}}}}</script>\n",
         g_design.headline_font, g_design.body_font,
-        g_design.background, g_design.primary,   /* modal bg/border */
-        g_design.primary, g_design.primary,       /* primary-fixed-dim, primary-fixed */
-        g_design.background, g_design.background, /* surface, background */
-        g_design.secondary,                        /* secondary */
+        g_design.background, g_design.primary,
+        g_design.primary, g_design.primary,
+        g_design.background, g_design.background,
+        g_design.secondary,
         g_design.headline_font, g_design.body_font, g_design.body_font
     );
 }
 
-/* ── NAVBAR ── */
 static void gen_make_navbar(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out,
         "<div id='tailwind-wrapper' class='bg-surface text-on-surface font-body"
@@ -744,7 +724,6 @@ static void gen_make_navbar(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out, "</div>\n</nav>\n");
 }
 
-/* ── HERO ── */
 static void gen_make_hero(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out,
         "<header class='relative h-screen w-full flex items-center overflow-hidden'>\n"
@@ -811,14 +790,12 @@ static void gen_make_hero(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out, "</div>\n</header>\n");
 }
 
-/* ── CONTENT SECTION ── */
 static void gen_content_section(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out,
         "<section id='%s' class='py-48 px-12 md:px-24 max-w-[1920px] mx-auto overflow-hidden'>\n"
         "<div class='grid grid-cols-1 md:grid-cols-12 gap-24 items-start'>\n",
         node->as.content_section.id);
 
-    /* Left column */
     if (node->as.content_section.left_col) {
         fprintf(ctx->out, "<div class='md:col-span-5 space-y-24'>\n");
         ASTNode *col = node->as.content_section.left_col;
@@ -827,7 +804,6 @@ static void gen_content_section(CodegenCtx *ctx, ASTNode *node) {
         fprintf(ctx->out, "</div>\n");
     }
 
-    /* Right column */
     if (node->as.content_section.right_col) {
         fprintf(ctx->out, "<div class='md:col-span-7 relative'>\n");
         ASTNode *col = node->as.content_section.right_col;
@@ -838,7 +814,6 @@ static void gen_content_section(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out, "</div>\n</section>\n");
 }
 
-/* ── EYEBROW ── */
 static void gen_eyebrow(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out,
         "<span class='font-label text-[0.6875rem] uppercase tracking-[0.4em]"
@@ -846,7 +821,6 @@ static void gen_eyebrow(CodegenCtx *ctx, ASTNode *node) {
         node->as.eyebrow.text);
 }
 
-/* ── ITEM LIST ── */
 static void gen_item_list(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out, "<div class='space-y-16 pl-8 border-l border-outline-variant/20'>\n");
     for (int i = 0; i < node->as.item_list.entries.count; i++) {
@@ -866,7 +840,6 @@ static void gen_item_list(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out, "</div>\n");
 }
 
-/* ── FEATURE IMAGE ── */
 static void gen_feature_image(CodegenCtx *ctx, ASTNode *node) {
     const char *aspect = strlen(node->as.feature_image.aspect) > 0
                          ? node->as.feature_image.aspect : "4/5";
@@ -880,7 +853,6 @@ static void gen_feature_image(CodegenCtx *ctx, ASTNode *node) {
         node->as.feature_image.src);
 }
 
-/* ── PRICE BADGE ── */
 static void gen_price_badge(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out,
         "<div class='absolute -bottom-12 -left-12 glass-card p-12 rounded-xl hidden md:block'>\n"
@@ -892,7 +864,6 @@ static void gen_price_badge(CodegenCtx *ctx, ASTNode *node) {
         node->as.price_badge.price, node->as.price_badge.label);
 }
 
-/* ── GALLERY ── */
 static void gen_make_gallery(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out,
         "<section class='py-48 bg-surface-container-low/30'>\n"
@@ -921,7 +892,6 @@ static void gen_make_gallery(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out, "</div>\n</section>\n");
 }
 
-/* ── FORM ── */
 static void gen_make_form(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out,
         "<section class='py-48 px-12 md:px-24 flex flex-col items-center"
@@ -980,7 +950,81 @@ static void gen_make_form(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out, "</div></div></section>\n");
 }
 
-/* ── MODAL ── */
+static void write_html_text(FILE *out, const char *s) {
+    for (; *s; s++) {
+        switch (*s) {
+            case '&':  fputs("&amp;", out);  break;
+            case '<':  fputs("&lt;", out);   break;
+            case '>':  fputs("&gt;", out);   break;
+            case '"':  fputs("&quot;", out); break;
+            case '\'': fputs("&#39;", out);  break;
+            default:   fputc(*s, out);
+        }
+    }
+}
+
+static void action_open(CodegenCtx *ctx, ASTNode *node, const char *tag) {
+    if (ctx->actions++ == 0)
+        fprintf(ctx->out,
+            "<style>\n"
+            ".epl-action{display:flex;flex-wrap:wrap;gap:.75rem;align-items:flex-end;margin:1rem 0}\n"
+            ".epl-action label{display:flex;flex-direction:column;gap:.35rem;font-size:.75rem;"
+            "letter-spacing:.08em;text-transform:uppercase;color:%s}\n"
+            ".epl-action input{font:inherit;font-size:1rem;text-transform:none;letter-spacing:0;"
+            "padding:.6rem .8rem;min-width:10rem;border-radius:6px;border:1px solid %s;"
+            "background:transparent;color:inherit}\n"
+            ".epl-action button{font:inherit;font-weight:700;padding:.65rem 1.4rem;border-radius:6px;"
+            "border:0;background:%s;color:#fff;cursor:pointer}\n"
+            ".epl-action button:disabled{opacity:.5}\n"
+            ".epl-reply{flex-basis:100%%;min-height:1.4em;font-family:'Space Mono',monospace;font-size:.9rem}\n"
+            ".epl-reply.err{color:#f87171}.epl-reply.ok{color:#4ade80}\n"
+            "</style>\n",
+            ctx->theme.subtext, ctx->theme.border, ctx->theme.accent);
+
+    static const char *after[] = { "show", "refresh", "go" };
+    int a = node->as.action_form.after;
+    indent(ctx);
+    fprintf(ctx->out, "<%s class=\"epl-action\" data-epl-act=\"", tag);
+    write_html_text(ctx->out, node->as.action_form.activity);
+    fprintf(ctx->out, "\" data-epl-after=\"%s\"", after[a >= 0 && a <= 2 ? a : 0]);
+    if (a == ACTION_AFTER_GO) {
+        fprintf(ctx->out, " data-epl-go=\"");
+        write_html_text(ctx->out, node->as.action_form.go_to);
+        fputc('"', ctx->out);
+    }
+    fprintf(ctx->out, ">\n");
+}
+
+static void action_close(CodegenCtx *ctx, ASTNode *node, const char *tag) {
+    indent(ctx);
+    fprintf(ctx->out, "  <button type=\"%s\">", strcmp(tag, "form") == 0 ? "submit" : "button");
+    write_html_text(ctx->out, node->as.action_form.label);
+    fprintf(ctx->out, "</button>\n");
+    indent(ctx);
+    fprintf(ctx->out, "  <output class=\"epl-reply\"></output>\n");
+    indent(ctx);
+    fprintf(ctx->out, "</%s>\n", tag);
+}
+
+static void gen_action_form(CodegenCtx *ctx, ASTNode *node) {
+    action_open(ctx, node, "form");
+    for (int i = 0; i < node->as.action_form.inputs.count; i++) {
+        ASTNode *in = node->as.action_form.inputs.items[i];
+        indent(ctx);
+        fprintf(ctx->out, "  <label>");
+        write_html_text(ctx->out, in->as.action_input.label);
+        fprintf(ctx->out, "<input name=\"");
+        write_html_text(ctx->out, in->as.action_input.name);
+        fprintf(ctx->out, "\" required></label>\n");
+    }
+    action_close(ctx, node, "form");
+}
+
+static void gen_action_button(CodegenCtx *ctx, ASTNode *node) {
+    action_open(ctx, node, "div");
+    action_close(ctx, node, "div");
+}
+
 static void gen_make_modal(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out,
         "<div id='%s'>\n"
@@ -1024,7 +1068,6 @@ static void gen_make_modal(CodegenCtx *ctx, ASTNode *node) {
         node->as.make_modal.modal_id);
 }
 
-/* ── FOOTER ── */
 static void gen_make_footer(CodegenCtx *ctx, ASTNode *node) {
     fprintf(ctx->out,
         "<footer class='bg-[%s] w-full pt-24 pb-12 flex flex-col md:flex-row"
@@ -1040,7 +1083,7 @@ static void gen_make_footer(CodegenCtx *ctx, ASTNode *node) {
         " uppercase tracking-widest'>© %s</div>\n"
         "</div>\n"
         "</footer>\n"
-        "</div>\n", /* close tailwind-wrapper */
+        "</div>\n",
         g_design.background,
         node->as.make_footer.brand,
         node->as.make_footer.tagline,
@@ -1050,14 +1093,9 @@ static void gen_make_footer(CodegenCtx *ctx, ASTNode *node) {
         node->as.make_footer.copyright);
 }
 
-/* ═════════════════════════════════════════════
-   MAIN DISPATCH
-   ═════════════════════════════════════════════ */
 void codegen_node(CodegenCtx *ctx, ASTNode *node) {
     if (!node) return;
 
-    /* For non-output nodes inside EPF — run them through the interpreter
-       so variables get set before charts/tables reference them */
     switch (node->type) {
         case NODE_SET:
         case NODE_UPDATE:
@@ -1083,7 +1121,6 @@ void codegen_node(CodegenCtx *ctx, ASTNode *node) {
         case NODE_SECTION_OUT:   gen_section(ctx, node);    break;
         case NODE_ROW:           gen_row(ctx, node);        break;
         case NODE_HTML_ELEMENT:  gen_html_element(ctx, node); break;
-        /* v2.0 EPF */
         case NODE_USE_DESIGN:      gen_use_design(ctx, node); break;
         case NODE_MAKE_NAVBAR:     gen_make_navbar(ctx, node); break;
         case NODE_MAKE_HERO:       gen_make_hero(ctx, node); break;
@@ -1094,18 +1131,14 @@ void codegen_node(CodegenCtx *ctx, ASTNode *node) {
         case NODE_PRICE_BADGE:     gen_price_badge(ctx, node); break;
         case NODE_MAKE_GALLERY:    gen_make_gallery(ctx, node); break;
         case NODE_MAKE_FORM:       gen_make_form(ctx, node); break;
+        case NODE_ACTION_FORM:     gen_action_form(ctx, node); break;
+        case NODE_ACTION_BUTTON:   gen_action_button(ctx, node); break;
         case NODE_MAKE_MODAL:      gen_make_modal(ctx, node); break;
         case NODE_MAKE_FOOTER:     gen_make_footer(ctx, node); break;
         default: break;
     }
 }
 
-/* ═════════════════════════════════════════════
-   COLLECT PAGES — pre-scan (v1.7)
-   Walk program AST, find every NODE_MAKE_PAGE
-   and record filename + first heading text.
-   Called BEFORE execution begins.
-   ═════════════════════════════════════════════ */
 void codegen_collect_pages(ASTNode *program, PageManifest *manifest,
                            Interpreter *interp, Env *env) {
     if (!program || !manifest) return;
@@ -1117,7 +1150,6 @@ void codegen_collect_pages(ASTNode *program, PageManifest *manifest,
         ASTNode *node = body->items[i];
         if (!node || node->type != NODE_MAKE_PAGE) continue;
 
-        /* Skip canvas3d pages — they don't use the nav shell */
         int has3d = 0;
         for (int j = 0; j < node->as.make_page.children.count; j++) {
             ASTNode *c = node->as.make_page.children.items[j];
@@ -1127,19 +1159,15 @@ void codegen_collect_pages(ASTNode *program, PageManifest *manifest,
 
         PageEntry *pe = &manifest->pages[manifest->count];
 
-        /* Filename */
         const char *fn = node->as.make_page.filename;
         if (!fn || fn[0] == '\0') fn = "output.html";
         strncpy(pe->filename, fn, 255);
         pe->filename[255] = '\0';
 
-        /* Label — use first heading, fall back to filename stem */
         pe->label[0] = '\0';
         for (int j = 0; j < node->as.make_page.children.count; j++) {
             ASTNode *c = node->as.make_page.children.items[j];
             if (c && c->type == NODE_HEADING_OUT && c->as.text_out.value) {
-                /* Evaluate the heading expression now, using the env as-is.
-                   Variables may not all be set yet, but string literals work fine. */
                 Value *v = eval(interp, c->as.text_out.value, env);
                 if (v && v->type == VAL_STRING) {
                     strncpy(pe->label, v->as.string, 255);
@@ -1150,7 +1178,6 @@ void codegen_collect_pages(ASTNode *program, PageManifest *manifest,
             }
         }
         if (pe->label[0] == '\0') {
-            /* Fall back to filename without path/extension */
             const char *base = strrchr(fn, '/') ? strrchr(fn, '/') + 1 :
                                (strrchr(fn, '\\') ? strrchr(fn, '\\') + 1 : fn);
             strncpy(pe->label, base, 255);
@@ -1158,7 +1185,6 @@ void codegen_collect_pages(ASTNode *program, PageManifest *manifest,
             if (dot) *dot = '\0';
         }
 
-        /* Icon — cycle through the preset set */
         strncpy(pe->icon,
             page_icons[manifest->count % 10],
             sizeof(pe->icon) - 1);
@@ -1167,16 +1193,11 @@ void codegen_collect_pages(ASTNode *program, PageManifest *manifest,
     }
 }
 
-
-/* ═════════════════════════════════════════════
-   PAGE ENTRY POINT  (v1.7)
-   ═════════════════════════════════════════════ */
 void codegen_page(Interpreter *interp, Env *env, ASTNode *node,
                   PageManifest *manifest) {
     const char *filename = node->as.make_page.filename;
     if (!filename || strlen(filename) == 0) filename = "output.html";
 
-    /* If page contains canvas3d — route to scene generator */
     for (int i = 0; i < node->as.make_page.children.count; i++) {
         ASTNode *child = node->as.make_page.children.items[i];
         if (child && child->type == NODE_CANVAS3D) {
@@ -1185,7 +1206,6 @@ void codegen_page(Interpreter *interp, Env *env, ASTNode *node,
         }
     }
 
-    /* Find which manifest slot this page occupies */
     int multi = (manifest && manifest->count > 1);
     if (multi) {
         for (int i = 0; i < manifest->count; i++) {
@@ -1211,8 +1231,8 @@ void codegen_page(Interpreter *interp, Env *env, ASTNode *node,
     ctx.chart_count = 0;
     ctx.indent      = 1;
     ctx.manifest    = manifest;
+    ctx.actions     = 0;
 
-    /* Use first heading as page title, or filename */
     char title[256] = "EPL Page";
     for (int i = 0; i < node->as.make_page.children.count; i++) {
         ASTNode *child = node->as.make_page.children.items[i];
@@ -1225,14 +1245,12 @@ void codegen_page(Interpreter *interp, Env *env, ASTNode *node,
         }
     }
 
-    /* Update manifest label with the live-evaluated title */
     if (multi) {
         strncpy(manifest->pages[manifest->active].label, title, 255);
     }
 
     write_head(&ctx, title, node->as.make_page.color);
 
-    /* ── Multi-page shell: nav + sidebar ── */
     if (multi) {
         write_shell_open(&ctx, manifest);
     }
@@ -1247,7 +1265,6 @@ void codegen_page(Interpreter *interp, Env *env, ASTNode *node,
     write_foot(&ctx);
     fclose(out);
 
-    /* Update .epbind */
     binding_update(interp->source_file, filename, "html");
 
     printf("[EPL] Generated: %s\n", filename);

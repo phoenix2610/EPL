@@ -1,0 +1,12 @@
+*.EPC
+
+build/*.o
+build/*.d
+build/epl
+
+.epdata/
+/.epbind
+/nexus_omega.*
+/dashboards.html
+
+eval/.venv/

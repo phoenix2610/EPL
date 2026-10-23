@@ -2,16 +2,10 @@
 #define INTERPRETER_H
 
 #include "ast.h"
-
-/* ─────────────────────────────────────────────
-   EPL Interpreter — interpreter.h  (v1.1)
-   ───────────────────────────────────────────── */
+#include "permissions.h"
 
 #define MAX_CALL_DEPTH 256
 
-/* ─────────────────────────────────────────────
-   Value types
-   ───────────────────────────────────────────── */
 typedef enum {
     VAL_NUMBER,
     VAL_STRING,
@@ -19,7 +13,8 @@ typedef enum {
     VAL_NULL,
     VAL_LIST,
     VAL_ACTIVITY,
-    VAL_GRAPH          /* v1.3 — connection graph */
+    VAL_GRAPH,
+    VAL_MAP
 } ValueType;
 
 typedef struct Value Value;
@@ -30,6 +25,13 @@ typedef struct {
     int     capacity;
 } ValueList;
 
+typedef struct {
+    char  **keys;
+    Value **values;
+    int     count;
+    int     capacity;
+} ValueMap;
+
 struct Value {
     ValueType type;
     union {
@@ -38,36 +40,35 @@ struct Value {
         int        boolean;
         ValueList *list;
         ASTNode   *activity;
-        EPLGraph  *graph;      /* v1.3 */
+        EPLGraph  *graph;
+        ValueMap  *map;
     } as;
 };
 
-/* Value constructors */
 Value *val_number(double n);
 Value *val_string(const char *s);
 Value *val_boolean(int b);
 Value *val_null(void);
 Value *val_list(void);
 Value *val_activity(ASTNode *node);
-Value *val_graph(void);          /* v1.3 */
+Value *val_graph(void);
 Value *val_copy(Value *src);
 void   val_free(Value *v);
 
-/* Value utilities */
 int    val_is_truthy(Value *v);
 int    val_equals(Value *a, Value *b);
 char  *val_to_string(Value *v);
 void   val_print(Value *v);
 
-/* Value list */
 void vallist_init(ValueList *list);
 void vallist_push(ValueList *list, Value *v);
 void vallist_free(ValueList *list);
 
+Value *val_map(void);
+void   valmap_set(ValueMap *m, const char *key, Value *v);
+Value *valmap_get(ValueMap *m, const char *key);
+void   valmap_free(ValueMap *m);
 
-/* ─────────────────────────────────────────────
-   Environment (variable scope)
-   ───────────────────────────────────────────── */
 typedef struct Env Env;
 struct Env {
     char   **names;
@@ -83,10 +84,6 @@ void   env_set(Env *env, const char *name, Value *value);
 Value *env_get(Env *env, const char *name);
 int    env_update(Env *env, const char *name, Value *value);
 
-
-/* ─────────────────────────────────────────────
-   Signal (return / break / continue / error)
-   ───────────────────────────────────────────── */
 typedef enum {
     SIG_NONE,
     SIG_RETURN,
@@ -100,29 +97,40 @@ typedef struct {
     Value     *value;
 } Signal;
 
-
-/* ─────────────────────────────────────────────
-   Interpreter
-   ───────────────────────────────────────────── */
-/* Forward declaration — PageManifest is defined in codegen.h */
 typedef struct PageManifest PageManifest;
+
+typedef struct DBIndexCache DBIndexCache;
 
 typedef struct {
     Env    *global;
     Signal  signal;
     int     had_error;
     int     call_depth;
-    const char *source_file;       /* v1.7 — source .EPF file for bindings */
-    PageManifest *page_manifest;   /* v1.7 — multi-page nav, NULL for single-page */
+    char    last_error[512];
+    int     attempt_depth;
+    const char *source_file;
+    PageManifest *page_manifest;
+
+    char      **imported_paths;
+    int         imported_count;
+    int         imported_cap;
+    ASTNode   **imported_asts;
+    int         imported_ast_count;
+    int         import_depth;
+
+    DBIndexCache *db_index;
+
+    int     record_scope;
+
+    Permissions *perms;
 } Interpreter;
 
 void interpreter_init(Interpreter *interp, const char *source_file);
 void   interpreter_free(Interpreter *interp);
 void   interpreter_run(Interpreter *interp, ASTNode *program);
 
-
 Value *eval(Interpreter *interp, ASTNode *node, Env *env);
 void   exec_node(Interpreter *interp, ASTNode *node, Env *env);
 void   exec_block(Interpreter *interp, NodeList *list, Env *env);
 
-#endif /* INTERPRETER_H */
+#endif

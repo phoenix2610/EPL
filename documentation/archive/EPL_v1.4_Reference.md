@@ -86,7 +86,7 @@ EPL uses three distinct file extensions. Same English syntax across all three. S
 |-----------|---------|---------|
 | `.EP`     | Logic, computation, backend | Execution output, terminal |
 | `.EPF`    | Frontend pages, charts, tables | `.html` files (live-bound) |
-| `.EPDB`   | Data definitions, queries, persistence *(v1.6)* | `.epdb` store |
+| `.EPDB`   | Data definitions, queries, persistence *(planned — v1.10)* | `.epdb` store |
 
 ### How they connect
 
@@ -101,7 +101,7 @@ make page saved as "dashboard.html" styled as "dark"
 !
 ```
 
-The `import` keyword — arriving in v1.6 — lets all three file types share data. `.EP` computes. `.EPDB` persists. `.EPF` presents. Each does one thing, in English.
+The `import` keyword — planned for v1.10 — will let all three file types share data. `.EP` computes. `.EPDB` persists. `.EPF` presents. Each does one thing, in English.
 
 ### Live binding — `.epbind`
 
@@ -1232,7 +1232,11 @@ Per-variable directed graphs, `link`, BFS `route`, BFS `connected`, multiple iso
 ### 🔲 v1.5 — `.EPD` Semantic Index
 `epl --describe program.EP` → `program.EPD`, describe block extraction, section range tagging, LLM context checkpoint system.
 
-### 🔲 v1.6 — Data Layer (EPDB)
+### 🔲 Data Layer (EPDB) — slipped to v1.10
+
+> **Status note (v1.9):** this was scheduled for v1.6, then v1.7, and is still
+> unimplemented. `.EPDB` is currently accepted as a file extension but runs
+> through the ordinary `.EP` pipeline. Now targeted at v1.10.
 `.EPDB` file type, EPL-native database (no SQL), `make table` definitions, `insert`, `delete`, `query where`, graph layer wired to persistence, `.epdb` binary store.
 
 ### 🔲 v1.7 — Dynamic Frontend

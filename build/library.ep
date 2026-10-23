@@ -1,11 +1,4 @@
-### Library Management System ###
-### EPL v1.5 — Full system with describe navigation index ###
-
 describe library system as "A complete library management system handling books, members, borrowing, returns, fines, and reporting across a catalogue of 15 books and 8 members"
-
-# ================================================================
-# SECTION 1: Book Catalogue
-# ================================================================
 
 describe book catalogue as "Master list of all books in the library — titles, authors, genres, and availability"
 
@@ -19,11 +12,6 @@ set book pages as [180, 281, 328, 432, 310, 311, 277, 224, 112, 112, 256, 208, 1
 set book available as [true, false, true, true, false, true, true, false, true, true, false, true, true, false, true]
 set book borrow count as [12, 34, 28, 19, 41, 15, 22, 30, 25, 18, 20, 33, 8, 14, 11]
 set book count as 15
-
-
-# ================================================================
-# SECTION 2: Member Registry
-# ================================================================
 
 describe member registry as "All registered library members with their IDs, names, membership tier, and current borrow counts"
 
@@ -40,21 +28,11 @@ set gold limit as 6
 set fine per day as 2
 set pass mark as 60
 
-
-# ================================================================
-# SECTION 3: Borrow and Return Log
-# ================================================================
-
 describe borrow log as "Active borrowing records — each entry is a string formatted as memberID:bookIndex:daysOverdue"
 
 set borrow log as ["M002:1:0", "M004:4:7", "M004:7:0", "M004:13:3", "M005:10:0", "M006:0:5", "M007:3:0", "M007:11:0", "M008:6:0", "M001:2:0", "M001:8:0", "M003:5:0"]
 
 set log count as 12
-
-
-# ================================================================
-# SECTION 4: Configuration and Thresholds
-# ================================================================
 
 describe system config as "Global thresholds — borrow limits per tier, fine rates, popularity cutoff, and short book definition"
 
@@ -62,18 +40,6 @@ set popular threshold as 25
 set short book pages as 200
 set overdue warning as 5
 set max fine cap as 50
-
-
-# ================================================================
-# SECTION 5: Core Utility Activities (Removed - using native indexing)
-# ================================================================
-
-
-# ================================================================
-# SECTION 6: Book Analysis Activities
-# ================================================================
-
-
 
 describe count available as "Counts and returns the sum number of books currently available for borrowing"
 to count available
@@ -170,12 +136,6 @@ to books by genre
     return count
 !
 
-
-# ================================================================
-# SECTION 7: Member Analysis Activities
-# ================================================================
-
-
 describe sum fines as "Sums all outstanding member fines and returns the library's sum receivable amount"
 to sum fines
     set sum as 0
@@ -245,13 +205,6 @@ to bronze members
     return count
 !
 
-
-# ================================================================
-# SECTION 8: Overdue and Fine Calculation
-# ================================================================
-
-
-
 describe overdue entries as "Scans the borrow log and counts entries where days overdue is greater than zero"
 to overdue entries
     set count as 0
@@ -272,11 +225,6 @@ to sum overdue days
     !
     return sum
 !
-
-
-# ================================================================
-# SECTION 9: Report Printer Activities
-# ================================================================
 
 describe print divider as "Prints a full-width separator line for report formatting"
 to print divider, show "================================================================"!
@@ -321,7 +269,7 @@ to print member report
         set name as item i of member names
         set tier as item i of member tiers
         set borrows as item i of member borrows
-        
+
         set limit as bronze limit
         if tier is "Gold" then
             update limit as gold limit
@@ -329,7 +277,7 @@ to print member report
         if tier is "Silver" then
             update limit as silver limit
         !
-        
+
         set fine as item i of member fines
         set can as borrows less than limit
         if fine greater than max fine cap then
@@ -429,11 +377,6 @@ to print summary report
     show "  sum overdue days      : " + overdue sum
     set by print divider
 !
-
-
-# ================================================================
-# SECTION 10: Entry Point — Run all reports
-# ================================================================
 
 describe entry point as "Main execution block — runs all four report sections in sequence with error handling"
 

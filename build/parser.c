@@ -1,55 +1,38 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include "parser.h"
 
-/* ─────────────────────────────────────────────
-   EPL Parser — parser.c
-   Recursive descent parser.
-   Reads the token stream and builds an AST.
-   ───────────────────────────────────────────── */
-
-
-/* ═════════════════════════════════════════════
-   INTERNAL NAVIGATION HELPERS
-   ═════════════════════════════════════════════ */
-
-/* Current token without consuming */
 static Token current(Parser *p) {
     return p->tokens[p->current];
 }
 
-/* Peek N tokens ahead without consuming */
 static Token peek_at(Parser *p, int offset) {
     int idx = p->current + offset;
-    if (idx >= p->count) return p->tokens[p->count - 1]; /* EOF */
+    if (idx >= p->count) return p->tokens[p->count - 1];
     return p->tokens[idx];
 }
 
-/* Consume and return current token */
 static Token advance(Parser *p) {
     Token t = p->tokens[p->current];
     if (p->current < p->count - 1) p->current++;
     return t;
 }
 
-/* Check if current token matches type */
 static int check(Parser *p, TokenType type) {
     return current(p).type == type;
 }
 
-/* Consume token if it matches, return 1 if matched */
 static int match(Parser *p, TokenType type) {
     if (check(p, type)) { advance(p); return 1; }
     return 0;
 }
 
-/* Skip all newline tokens */
 static void skip_newlines(Parser *p) {
     while (check(p, TOKEN_NEWLINE)) advance(p);
 }
 
-/* Error reporting */
 static void parser_error(Parser *p, const char *msg) {
     if (p->panic_mode) return;
     Token t = current(p);
@@ -59,14 +42,12 @@ static void parser_error(Parser *p, const char *msg) {
     p->panic_mode = 1;
 }
 
-/* Expect a specific token type or error */
 static Token expect(Parser *p, TokenType type, const char *msg) {
     if (check(p, type)) return advance(p);
     parser_error(p, msg);
     return current(p);
 }
 
-/* Sync after error — skip to next safe point */
 static void synchronize(Parser *p) {
     p->panic_mode = 0;
     while (!check(p, TOKEN_EOF)) {
@@ -76,7 +57,6 @@ static void synchronize(Parser *p) {
     }
 }
 
-/* Helper to check if a token is a postfix operator (v1.2) */
 static int is_postfix_op(TokenType type) {
     return (type == TOKEN_IN ||
             type == TOKEN_TRIMMED ||
@@ -91,7 +71,6 @@ static int is_postfix_op(TokenType type) {
             type == TOKEN_IS);
 }
 
-/* Helper to check if a token can be part of an identifier name */
 static int is_identifier_word(TokenType type) {
     return (type == TOKEN_IDENTIFIER ||
             type == TOKEN_TOTAL ||
@@ -114,19 +93,19 @@ static int is_identifier_word(TokenType type) {
             type == TOKEN_LIST_KW ||
             type == TOKEN_BOOLEAN_KW ||
             type == TOKEN_A ||
-            type == TOKEN_REPLACED);
+            type == TOKEN_REPLACED ||
+            type == TOKEN_X_AXIS ||
+            type == TOKEN_Y_AXIS ||
+            type == TOKEN_Z_AXIS);
 }
 
-/* Collect multi-word identifier name into buf */
-/* e.g. "clear screen", "get number" */
 static void collect_name(Parser *p, char *buf, int maxlen) {
     buf[0] = '\0';
     int first = 1;
     while (1) {
         TokenType type = current(p).type;
         int is_valid = is_identifier_word(type) || (first && is_postfix_op(type));
-        
-        /* Special case for v1.2: 'rounded' is an identifier unless followed by 'to' */
+
         if (type == TOKEN_ROUNDED && peek_at(p, 1).type != TOKEN_TO) {
             is_valid = 1;
         }
@@ -140,24 +119,26 @@ static void collect_name(Parser *p, char *buf, int maxlen) {
     }
 }
 
-
-/* ═════════════════════════════════════════════
-   PARSER INIT
-   ═════════════════════════════════════════════ */
 void parser_init(Parser *p, Token *tokens, int count) {
     p->tokens    = tokens;
     p->count     = count;
     p->current   = 0;
     p->had_error = 0;
     p->panic_mode = 0;
+    p->no_times_op = 0;
 }
 
+static void close_block(Parser *p, int open_line) {
+    if (match(p, TOKEN_TERMINATOR)) return;
+    if (check(p, TOKEN_EOF) && !p->panic_mode) {
+        fprintf(stderr, "[EPL Error] Line %d: block opened here is never closed "
+                        "with '!' (reached end of file)\n", open_line);
+        p->had_error = 1;
+    }
+}
 
-/* ═════════════════════════════════════════════
-   BLOCK PARSER
-   Reads statements until ! or EOF.
-   ═════════════════════════════════════════════ */
 void parse_block(Parser *p, NodeList *list) {
+    int open_line = p->current > 0 ? p->tokens[p->current - 1].line : 1;
     nodelist_init(list);
     skip_newlines(p);
     while (!check(p, TOKEN_TERMINATOR) &&
@@ -169,13 +150,9 @@ void parse_block(Parser *p, NodeList *list) {
         if (p->panic_mode) synchronize(p);
         skip_newlines(p);
     }
-    match(p, TOKEN_TERMINATOR);   /* consume the ! */
+    close_block(p, open_line);
 }
 
-
-/* ═════════════════════════════════════════════
-   MAIN PARSE ENTRY
-   ═════════════════════════════════════════════ */
 ASTNode *parser_parse(Parser *p) {
     ASTNode *program = ast_make_node(NODE_PROGRAM, 1, 1);
     nodelist_init(&program->as.program.body);
@@ -192,10 +169,81 @@ ASTNode *parser_parse(Parser *p) {
     return program;
 }
 
+static const struct { const char *word; const char *use; } STATEMENT_HINTS[] = {
+    { "print",    "show VALUE" },        { "echo",     "show VALUE" },
+    { "puts",     "show VALUE" },        { "console",  "show VALUE" },
+    { "printf",   "show VALUE" },        { "write",    "show VALUE, or: write TEXT to file \"PATH\"" },
+    { "let",      "set NAME as VALUE" }, { "var",      "set NAME as VALUE" },
+    { "const",    "set NAME as VALUE" }, { "val",      "set NAME as VALUE" },
+    { "def",      "to NAME taking A, B   (then the body, then a line with just !)" },
+    { "function", "to NAME taking A, B   (then the body, then a line with just !)" },
+    { "func",     "to NAME taking A, B   (then the body, then a line with just !)" },
+    { "fn",       "to NAME taking A, B   (then the body, then a line with just !)" },
+    { "elif",     "otherwise if CONDITION then" },
+    { "elseif",   "otherwise if CONDITION then" },
+    { "end",      "! on its own line to close a block" },
+    { "endif",    "! on its own line to close a block" },
+    { "fi",       "! on its own line to close a block" },
+    { "done",     "! on its own line to close a block" },
+    { "call",     "set RESULT by NAME with ARG and ARG" },
+    { "loop",     "repeat N times   or   for each ITEM in LIST" },
+    { "try",      "attempt   (then the code, then: if fails then ... !)" },
+    { "catch",    "if fails then" },
+    { "except",   "if fails then" },
+    { "raise",    "fail with \"MESSAGE\"" },
+    { "throw",    "fail with \"MESSAGE\"" },
+    { "append",   "add VALUE to LIST" },
+    { "push",     "add VALUE to LIST" },
+    { NULL, NULL }
+};
 
-/* ═════════════════════════════════════════════
-   STATEMENT DISPATCHER
-   ═════════════════════════════════════════════ */
+static void statement_start_error(Parser *p, Token t) {
+    char msg[600];
+    if (p->current > 0) {
+        Token prev = p->tokens[p->current - 1];
+        if (prev.type != TOKEN_NEWLINE && prev.type != TOKEN_TERMINATOR &&
+            prev.line == t.line) {
+            snprintf(msg, sizeof msg,
+                     "I can't read \"%s\" here: the statement before it on this line "
+                     "was already complete. Write one statement per line", t.value);
+            parser_error(p, msg);
+            return;
+        }
+    }
+    for (int i = 0; STATEMENT_HINTS[i].word; i++) {
+        if (strcmp(t.value, STATEMENT_HINTS[i].word) == 0) {
+            snprintf(msg, sizeof msg, "EPL has no \"%s\" statement; write: %s",
+                     t.value, STATEMENT_HINTS[i].use);
+            parser_error(p, msg);
+            return;
+        }
+    }
+    if (strcmp(t.value, "}") == 0 || strcmp(t.value, "{") == 0) {
+        parser_error(p, "EPL has no braces; blocks end with ! on its own line");
+        return;
+    }
+    Token next = p->current + 1 < p->count ? p->tokens[p->current + 1] : t;
+    if (t.type == TOKEN_IDENTIFIER && next.line == t.line &&
+        (strcmp(next.value, "=") == 0 || strcmp(next.value, "+=") == 0)) {
+        snprintf(msg, sizeof msg, "EPL has no \"=\"; write: set %s as VALUE "
+                 "(or update %s as VALUE to change it)", t.value, t.value);
+        parser_error(p, msg);
+        return;
+    }
+    if (t.type == TOKEN_IDENTIFIER) {
+        snprintf(msg, sizeof msg,
+                 "a statement can't start with the name \"%s\". To call an activity write: "
+                 "set RESULT by %s with ARG; to change a variable: update %s as VALUE",
+                 t.value, t.value, t.value);
+        parser_error(p, msg);
+        return;
+    }
+    snprintf(msg, sizeof msg,
+             "I can't start a statement with \"%s\". Statements start with a word "
+             "such as set, show, if, for, repeat, while, to, update, add or attempt", t.value);
+    parser_error(p, msg);
+}
+
 ASTNode *parse_statement(Parser *p) {
     skip_newlines(p);
     Token t = current(p);
@@ -210,11 +258,21 @@ ASTNode *parse_statement(Parser *p) {
         case TOKEN_REPEAT:      return parse_repeat(p);
         case TOKEN_FOR:         return parse_for(p);
         case TOKEN_TO:          return parse_activity_def(p);
+        case TOKEN_IMPORT:      return parse_import(p);
+        case TOKEN_DB_MAKE_TABLE: return parse_db_make_table(p);
+        case TOKEN_DB_SAVE:     return parse_db_save(p);
+        case TOKEN_DB_DELETE:   return parse_db_delete(p);
         case TOKEN_RETURN:      return parse_return(p);
         case TOKEN_CHECK:       return parse_check(p);
         case TOKEN_DESCRIBE:    return parse_describe(p);
         case TOKEN_PROVIDE:     return parse_provide(p);
         case TOKEN_ATTEMPT:     return parse_attempt(p);
+        case TOKEN_FAIL_WITH_PH: {
+            Token ft = advance(p);
+            ASTNode *fn = ast_make_node(NODE_FAIL_WITH, ft.line, ft.col);
+            fn->as.fail_with.message_expr = parse_expression(p);
+            return fn;
+        }
         case TOKEN_ADD:         return parse_add_to(p);
         case TOKEN_WAIT:        return parse_wait(p);
         case TOKEN_EXECUTE:     return parse_execute(p);
@@ -246,14 +304,26 @@ ASTNode *parse_statement(Parser *p) {
         case TOKEN_SPAN_KW:
         case TOKEN_BUTTON_KW:
         case TOKEN_INPUT_KW:    return parse_html_element(p);
-        case TOKEN_IMAGE_KW:    return parse_gallery_image(p);
-        /* v2.0 EPF Components */
+        case TOKEN_IMAGE_KW:
+            switch (peek_at(p, 1).type) {
+                case TOKEN_SRC_KW:
+                case TOKEN_ID_KW:
+                case TOKEN_CLASS_KW:
+                case TOKEN_TYPE_KW:
+                case TOKEN_ONCLICK_KW:
+                case TOKEN_PLACEHOLDER_KW:
+                case TOKEN_VALUE_KW:
+                    return parse_html_element(p);
+                default:
+                    return parse_gallery_image(p);
+            }
         case TOKEN_USE_DESIGN:      return parse_use_design(p);
         case TOKEN_MAKE_NAVBAR:     return parse_make_navbar(p);
         case TOKEN_MAKE_HERO:       return parse_make_hero(p);
         case TOKEN_CONTENT_SECTION: return parse_content_section(p);
         case TOKEN_MAKE_GALLERY:    return parse_make_gallery(p);
         case TOKEN_MAKE_FORM:       return parse_make_form(p);
+        case TOKEN_MAKE_BUTTON:     return parse_make_button(p);
         case TOKEN_MAKE_MODAL:      return parse_make_modal(p);
         case TOKEN_MAKE_FOOTER:     return parse_make_footer(p);
         case TOKEN_OVERLAY_CARD:    return parse_overlay_card(p);
@@ -272,6 +342,14 @@ ASTNode *parse_statement(Parser *p) {
         case TOKEN_SUBMIT_BTN:      return parse_submit_btn(p);
         case TOKEN_DISMISS_BTN:     return parse_dismiss_btn(p);
         case TOKEN_FIELD:           return parse_form_field(p);
+        case TOKEN_WRITE_KW:        return parse_write_file(p, NODE_WRITE_FILE);
+        case TOKEN_APPEND_KW:       return parse_write_file(p, NODE_APPEND_FILE);
+        case TOKEN_DELETE_FILE_PH:
+        case TOKEN_DELETE_KW:       return parse_delete_file(p);
+        case TOKEN_SLEEP_KW:        return parse_sleep(p);
+        case TOKEN_SERVE_SOCK_PH:   return parse_serve_socket(p);
+        case TOKEN_SERVE_PORT_PH:   return parse_serve_port(p);
+        case TOKEN_REPLY_WITH_PH:   return parse_reply_with(p);
         case TOKEN_BREAK: {
             ASTNode *n = ast_make_node(NODE_BREAK, t.line, t.col);
             advance(p);
@@ -288,30 +366,16 @@ ASTNode *parse_statement(Parser *p) {
             advance(p);
             return NULL;
         default:
-            parser_error(p, "Unexpected token at start of statement");
+            statement_start_error(p, t);
             advance(p);
             return NULL;
     }
 }
 
-
-/* ═════════════════════════════════════════════
-   COLLECTION OPERATION  (v1.1)
-   Parses expressions like:
-     average of prices
-     total of scores
-     maximum of grades
-     minimum of temps
-     length of items
-     sorted prices
-     reversed items
-   Called from parse_primary when a collection
-   keyword is encountered.
-   ═════════════════════════════════════════════ */
 ASTNode *parse_collection_op(Parser *p) {
     Token t = current(p);
     CollectionOp op;
-    int has_of = 1;   /* most ops use "of" — sorted/reversed don't */
+    int has_of = 1;
 
     switch (t.type) {
         case TOKEN_AVERAGE:  op = COLLOP_AVERAGE;  break;
@@ -319,16 +383,21 @@ ASTNode *parse_collection_op(Parser *p) {
         case TOKEN_MAXIMUM:  op = COLLOP_MAXIMUM;  break;
         case TOKEN_MINIMUM:  op = COLLOP_MINIMUM;  break;
         case TOKEN_LENGTH:   op = COLLOP_LENGTH;   break;
+        case TOKEN_SIZE_OF:  op = COLLOP_LENGTH;   has_of = 0; break;
         case TOKEN_SORTED:   op = COLLOP_SORTED;   has_of = 0; break;
         case TOKEN_REVERSED: op = COLLOP_REVERSED; has_of = 0; break;
+        case TOKEN_KEYS_OF:  op = COLLOP_KEYS;     has_of = 0; break;
+        case TOKEN_CODE_OF:  op = COLLOP_CODE;     has_of = 0; break;
+        case TOKEN_CHAR_CODE: op = COLLOP_CHARACTER; has_of = 0; break;
+        case TOKEN_SHA256_OF: op = COLLOP_SHA256;  has_of = 0; break;
+        case TOKEN_RANDOM_TOKEN: op = COLLOP_RANDOM_TOKEN; has_of = 0; break;
         default:
             parser_error(p, "Unknown collection operation");
             return ast_make_node(NODE_NULL, t.line, t.col);
     }
 
-    advance(p);   /* consume the op keyword */
+    advance(p);
 
-    /* Consume optional 'of' */
     if (has_of) match(p, TOKEN_OF);
 
     ASTNode *node = ast_make_node(NODE_COLLECTION_OP, t.line, t.col);
@@ -337,13 +406,6 @@ ASTNode *parse_collection_op(Parser *p) {
     return node;
 }
 
-
-/* ═════════════════════════════════════════════
-   STRING OPERATION  (v1.2)
-   Called from parse_postfix when "in", "trimmed",
-   "split", "joined", "starts", "ends", "contains"
-   follow a primary expression.
-   ═════════════════════════════════════════════ */
 ASTNode *parse_string_op(Parser *p, ASTNode *target) {
     Token t = current(p);
     ASTNode *node = ast_make_node(NODE_STRING_OP, t.line, t.col);
@@ -351,7 +413,6 @@ ASTNode *parse_string_op(Parser *p, ASTNode *target) {
     node->as.string_op.arg1   = NULL;
     node->as.string_op.arg2   = NULL;
 
-    /* name in uppercase / name in lowercase */
     if (t.type == TOKEN_IN) {
         advance(p);
         Token kw = current(p);
@@ -362,21 +423,18 @@ ASTNode *parse_string_op(Parser *p, ASTNode *target) {
             advance(p);
             node->as.string_op.op = STROP_LOWERCASE;
         } else {
-            /* "in" used for membership — not a string op, bail */
             ast_free(node);
             return target;
         }
         return node;
     }
 
-    /* name trimmed */
     if (t.type == TOKEN_TRIMMED) {
         advance(p);
         node->as.string_op.op = STROP_TRIMMED;
         return node;
     }
 
-    /* sentence split by " " */
     if (t.type == TOKEN_SPLIT) {
         advance(p);
         match(p, TOKEN_BY);
@@ -385,7 +443,6 @@ ASTNode *parse_string_op(Parser *p, ASTNode *target) {
         return node;
     }
 
-    /* parts joined by ", " */
     if (t.type == TOKEN_JOINED) {
         advance(p);
         match(p, TOKEN_BY);
@@ -394,18 +451,16 @@ ASTNode *parse_string_op(Parser *p, ASTNode *target) {
         return node;
     }
 
-    /* text with "old" replaced by "new" */
     if (t.type == TOKEN_WITH) {
         advance(p);
         node->as.string_op.op   = STROP_REPLACED;
-        node->as.string_op.arg1 = parse_primary(p);   /* search  */
+        node->as.string_op.arg1 = parse_primary(p);
         match(p, TOKEN_REPLACED);
         match(p, TOKEN_BY);
-        node->as.string_op.arg2 = parse_primary(p);   /* replace */
+        node->as.string_op.arg2 = parse_primary(p);
         return node;
     }
 
-    /* name starts with "Ph" */
     if (t.type == TOKEN_STARTS) {
         advance(p);
         match(p, TOKEN_WITH);
@@ -414,7 +469,6 @@ ASTNode *parse_string_op(Parser *p, ASTNode *target) {
         return node;
     }
 
-    /* name ends with "ix" */
     if (t.type == TOKEN_ENDS) {
         advance(p);
         match(p, TOKEN_WITH);
@@ -423,7 +477,6 @@ ASTNode *parse_string_op(Parser *p, ASTNode *target) {
         return node;
     }
 
-    /* name contains "oen" */
     if (t.type == TOKEN_CONTAINS) {
         advance(p);
         node->as.string_op.op   = STROP_CONTAINS;
@@ -431,28 +484,16 @@ ASTNode *parse_string_op(Parser *p, ASTNode *target) {
         return node;
     }
 
-    /* nothing matched — not a string op */
     ast_free(node);
     return target;
 }
 
-
-/* ═════════════════════════════════════════════
-   FORMAT OPERATION  (v1.2)
-   Called from parse_postfix when "as" follows
-   a primary that resolves to a number.
-   price as currency
-   ratio as percentage
-   pi rounded to 2
-   big as formatted
-   ═════════════════════════════════════════════ */
 ASTNode *parse_format_op(Parser *p, ASTNode *target) {
     Token t = current(p);
     ASTNode *node = ast_make_node(NODE_FORMAT_OP, t.line, t.col);
     node->as.format_op.target    = target;
     node->as.format_op.precision = NULL;
 
-    /* X rounded to N */
     if (t.type == TOKEN_ROUNDED) {
         advance(p);
         match(p, TOKEN_TO);
@@ -461,7 +502,6 @@ ASTNode *parse_format_op(Parser *p, ASTNode *target) {
         return node;
     }
 
-    /* X as currency / X as percentage / X as formatted */
     if (t.type == TOKEN_AS) {
         advance(p);
         Token kw = current(p);
@@ -480,25 +520,17 @@ ASTNode *parse_format_op(Parser *p, ASTNode *target) {
             node->as.format_op.op = FMTOP_FORMATTED;
             return node;
         }
-        /* not a format op — back out */
-        p->current--;   /* unconsume TOKEN_AS */
+        p->current--;
     }
 
     ast_free(node);
     return target;
 }
 
-
-/* ═════════════════════════════════════════════
-   SET STATEMENT
-   set <name> as <expression>
-   set <name> by <activity_call>
-   ═════════════════════════════════════════════ */
 ASTNode *parse_set(Parser *p) {
-    Token t = advance(p);   /* consume 'set' */
+    Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_SET, t.line, t.col);
 
-    /* Collect variable name (may be multi-word) */
     char name[MAX_TOKEN_LEN] = {0};
     int first = 1;
     while (!check(p, TOKEN_AS) && !check(p, TOKEN_BY) && !check(p, TOKEN_EOF) && !check(p, TOKEN_NEWLINE)) {
@@ -507,23 +539,17 @@ ASTNode *parse_set(Parser *p) {
         advance(p);
         first = 0;
     }
-    strncpy(node->as.assignment.name, name, MAX_TOKEN_LEN - 1);
+    AST_SET_STR(node->as.assignment.name, name);
 
     if (match(p, TOKEN_AS)) {
         node->as.assignment.value = parse_expression(p);
     } else if (match(p, TOKEN_BY)) {
-        /* set r by adding n1 and n2
-           set msg by greet
-           Strategy: collect words into name until we hit
-           a string/number/boolean (those are args),
-           or 'and'/'from'/'with' (arg separators) */
         ASTNode *call = ast_make_node(NODE_ACTIVITY_CALL, t.line, t.col);
         nodelist_init(&call->as.activity_call.args);
 
         char act_name[MAX_TOKEN_LEN] = {0};
         int first = 1;
 
-        /* Collect all words that form the activity name */
         while (!check(p, TOKEN_NEWLINE)    &&
                !check(p, TOKEN_TERMINATOR) &&
                !check(p, TOKEN_EOF)        &&
@@ -541,9 +567,8 @@ ASTNode *parse_set(Parser *p) {
             advance(p);
             first = 0;
         }
-        strncpy(call->as.activity_call.name, act_name, MAX_TOKEN_LEN - 1);
+        AST_SET_STR(call->as.activity_call.name, act_name);
 
-        /* Collect arguments separated by 'and', 'from', 'with' */
         while (!check(p, TOKEN_NEWLINE)    &&
                !check(p, TOKEN_TERMINATOR) &&
                !check(p, TOKEN_EOF)) {
@@ -553,7 +578,12 @@ ASTNode *parse_set(Parser *p) {
             if (check(p, TOKEN_NEWLINE) ||
                 check(p, TOKEN_TERMINATOR) ||
                 check(p, TOKEN_EOF)) break;
-            ASTNode *arg = parse_primary(p);
+            int before = p->current;
+            ASTNode *arg = parse_additive(p);
+            if (p->current == before) {
+                parser_error(p, "Unexpected word in activity arguments");
+                break;
+            }
             if (arg) nodelist_push(&call->as.activity_call.args, arg);
         }
 
@@ -565,13 +595,30 @@ ASTNode *parse_set(Parser *p) {
     return node;
 }
 
-
-/* ═════════════════════════════════════════════
-   UPDATE STATEMENT
-   update <name> as <expression>
-   ═════════════════════════════════════════════ */
 ASTNode *parse_update(Parser *p) {
-    Token t = advance(p);   /* consume 'update' */
+    Token t = advance(p);
+
+    if (check(p, TOKEN_ITEM) || check(p, TOKEN_FIELD)) {
+        int is_field = check(p, TOKEN_FIELD);
+        advance(p);
+        ASTNode *node = ast_make_node(NODE_UPDATE_PART, t.line, t.col);
+        node->as.update_part.is_field = is_field;
+        node->as.update_part.selector = is_field ? parse_primary(p) : parse_additive(p);
+        if (!match(p, TOKEN_OF) && !match(p, TOKEN_FROM))
+            parser_error(p, is_field ? "Expected 'of' in 'update field \"name\" of RECORD as VALUE'"
+                                     : "Expected 'of' in 'update item N of LIST as VALUE'");
+        char name[MAX_TOKEN_LEN] = {0};
+        while (!check(p, TOKEN_AS) && !check(p, TOKEN_EOF) && !check(p, TOKEN_NEWLINE)) {
+            if (name[0]) strncat(name, " ", MAX_TOKEN_LEN - strlen(name) - 1);
+            strncat(name, current(p).value, MAX_TOKEN_LEN - strlen(name) - 1);
+            advance(p);
+        }
+        AST_SET_STR(node->as.update_part.target, name);
+        expect(p, TOKEN_AS, "Expected 'as' before the new value");
+        node->as.update_part.value = parse_expression(p);
+        return node;
+    }
+
     ASTNode *node = ast_make_node(NODE_UPDATE, t.line, t.col);
 
     char name[MAX_TOKEN_LEN] = {0};
@@ -582,7 +629,7 @@ ASTNode *parse_update(Parser *p) {
         advance(p);
         first = 0;
     }
-    strncpy(node->as.assignment.name, name, MAX_TOKEN_LEN - 1);
+    AST_SET_STR(node->as.assignment.name, name);
 
     if (match(p, TOKEN_AS)) {
         node->as.assignment.value = parse_expression(p);
@@ -595,32 +642,15 @@ ASTNode *parse_update(Parser *p) {
     return node;
 }
 
-
-/* ═════════════════════════════════════════════
-   SHOW STATEMENT
-   show <expression>
-   ═════════════════════════════════════════════ */
 ASTNode *parse_show(Parser *p) {
-    Token t = advance(p);   /* consume 'show' or 'display' */
+    Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_SHOW, t.line, t.col);
     node->as.show.value = parse_expression(p);
     return node;
 }
 
-
-/* ═════════════════════════════════════════════
-   IF STATEMENT
-   if <condition> then
-       <body>
-   !
-   if <condition> then
-       <body>
-   otherwise
-       <body>
-   !
-   ═════════════════════════════════════════════ */
 ASTNode *parse_if(Parser *p) {
-    Token t = advance(p);   /* consume 'if' */
+    Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_IF, t.line, t.col);
 
     node->as.if_stmt.condition = parse_expression(p);
@@ -631,7 +661,6 @@ ASTNode *parse_if(Parser *p) {
 
     skip_newlines(p);
 
-    /* Read then-body until !, otherwise, or EOF */
     while (!check(p, TOKEN_TERMINATOR) &&
            !check(p, TOKEN_OTHERWISE)  &&
            !check(p, TOKEN_EOF)) {
@@ -645,8 +674,13 @@ ASTNode *parse_if(Parser *p) {
         skip_newlines(p);
     }
 
-    /* Optional otherwise block */
     if (match(p, TOKEN_OTHERWISE)) {
+        if (check(p, TOKEN_IF)) {
+            ASTNode *chained = parse_if(p);
+            nodelist_push(&node->as.if_stmt.else_body, chained);
+            node->end_line = chained->end_line;
+            return node;
+        }
         skip_newlines(p);
         while (!check(p, TOKEN_TERMINATOR) && !check(p, TOKEN_EOF)) {
             skip_newlines(p);
@@ -658,121 +692,93 @@ ASTNode *parse_if(Parser *p) {
         }
     }
 
-    match(p, TOKEN_TERMINATOR);   /* consume ! */
-    node->end_line = current(p).line;   /* v1.5 */
+    close_block(p, t.line);
+    node->end_line = current(p).line;
     return node;
 }
 
-
-/* ═════════════════════════════════════════════
-   WHILE STATEMENT
-   while <condition>
-       <body>
-   !
-   ═════════════════════════════════════════════ */
 ASTNode *parse_while(Parser *p) {
-    Token t = advance(p);   /* consume 'while' */
+    Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_WHILE, t.line, t.col);
     node->as.while_stmt.condition = parse_expression(p);
     nodelist_init(&node->as.while_stmt.body);
     parse_block(p, &node->as.while_stmt.body);
-    node->end_line = current(p).line;   /* v1.5 */
+    node->end_line = current(p).line;
     return node;
 }
 
-
-/* ═════════════════════════════════════════════
-   REPEAT STATEMENT
-   Handles three variants:
-   repeat 5 times [with i]
-   repeat until <condition>
-   repeat indefinitely
-   ═════════════════════════════════════════════ */
 ASTNode *parse_repeat(Parser *p) {
-    Token t = advance(p);   /* consume 'repeat' */
+    Token t = advance(p);
 
-    /* repeat indefinitely */
     if (match(p, TOKEN_INDEFINITELY)) {
         ASTNode *node = ast_make_node(NODE_REPEAT_INDEFINITELY, t.line, t.col);
         parse_block(p, &node->as.repeat_indefinitely.body);
-        node->end_line = current(p).line;   /* v1.5 */
+        node->end_line = current(p).line;
         return node;
     }
 
-    /* repeat until <condition> */
     if (match(p, TOKEN_UNTIL)) {
         ASTNode *node = ast_make_node(NODE_REPEAT_UNTIL, t.line, t.col);
         node->as.repeat_until.condition = parse_expression(p);
         parse_block(p, &node->as.repeat_until.body);
-        node->end_line = current(p).line;   /* v1.5 */
+        node->end_line = current(p).line;
         return node;
     }
 
-    /* repeat <count> times [with i] */
     ASTNode *node = ast_make_node(NODE_REPEAT_TIMES, t.line, t.col);
+    p->no_times_op = 1;
     node->as.repeat_times.count = parse_expression(p);
+    p->no_times_op = 0;
     node->as.repeat_times.counter[0] = '\0';
 
     expect(p, TOKEN_TIMES, "Expected 'times' after repeat count");
 
-    /* Optional: with <counter_var> */
     if (match(p, TOKEN_WITH)) {
         if (check(p, TOKEN_IDENTIFIER)) {
-            strncpy(node->as.repeat_times.counter,
-                current(p).value, MAX_TOKEN_LEN - 1);
+            AST_SET_STR(node->as.repeat_times.counter,
+                current(p).value);
             advance(p);
         }
     }
 
     parse_block(p, &node->as.repeat_times.body);
-    node->end_line = current(p).line;   /* v1.5 */
+    node->end_line = current(p).line;
     return node;
 }
 
-
-/* ═════════════════════════════════════════════
-   FOR STATEMENT
-   Handles:
-   for each <var> in <collection>
-   for <var> from <n> to <n>
-   for <var> from <n> down to <n>
-   ═════════════════════════════════════════════ */
 ASTNode *parse_for(Parser *p) {
-    Token t = advance(p);   /* consume 'for' */
+    Token t = advance(p);
 
-    /* for each <var> in <collection> */
     if (match(p, TOKEN_EACH)) {
         ASTNode *node = ast_make_node(NODE_FOR_EACH, t.line, t.col);
         node->as.for_each.var[0] = '\0';
 
         if (check(p, TOKEN_IDENTIFIER)) {
-            strncpy(node->as.for_each.var,
-                current(p).value, MAX_TOKEN_LEN - 1);
+            AST_SET_STR(node->as.for_each.var,
+                current(p).value);
             advance(p);
         }
 
         expect(p, TOKEN_IN, "Expected 'in' after loop variable");
         node->as.for_each.collection = parse_expression(p);
         parse_block(p, &node->as.for_each.body);
-        node->end_line = current(p).line;   /* v1.5 */
+        node->end_line = current(p).line;
         return node;
     }
 
-    /* for <var> from <n> to/down to <n> */
     ASTNode *node = ast_make_node(NODE_FOR_RANGE, t.line, t.col);
     node->as.for_range.downward = 0;
     node->as.for_range.var[0]   = '\0';
 
     if (check(p, TOKEN_IDENTIFIER)) {
-        strncpy(node->as.for_range.var,
-            current(p).value, MAX_TOKEN_LEN - 1);
+        AST_SET_STR(node->as.for_range.var,
+            current(p).value);
         advance(p);
     }
 
-    expect(p, TOKEN_FROM, "Expected 'from' in for range loop");
+    expect(p, TOKEN_FROM, "Expected 'from': write for I from 1 to 10 for a counted loop, or for each ITEM in LIST to loop over a list");
     node->as.for_range.from = parse_expression(p);
 
-    /* down to */
     if (match(p, TOKEN_DOWN)) {
         node->as.for_range.downward = 1;
     }
@@ -780,26 +786,18 @@ ASTNode *parse_for(Parser *p) {
     expect(p, TOKEN_TO, "Expected 'to' in for range loop");
     node->as.for_range.to = parse_expression(p);
     parse_block(p, &node->as.for_range.body);
-    node->end_line = current(p).line;   /* v1.5 */
+    node->end_line = current(p).line;
     return node;
 }
 
-
-/* ═════════════════════════════════════════════
-   ACTIVITY DEFINITION
-   to <name>[, <single-line-body>!]
-   to <name>
-       <body>
-   !
-   ═════════════════════════════════════════════ */
 ASTNode *parse_activity_def(Parser *p) {
-    Token t = advance(p);   /* consume 'to' */
+    Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_ACTIVITY_DEF, t.line, t.col);
 
-    /* Collect activity name — keywords like 'add','subtract' are valid names here */
     char name[MAX_TOKEN_LEN] = {0};
     int first = 1;
     while (!check(p, TOKEN_COMMA)      &&
+           !check(p, TOKEN_TAKING)     &&
            !check(p, TOKEN_NEWLINE)    &&
            !check(p, TOKEN_TERMINATOR) &&
            !check(p, TOKEN_EOF)) {
@@ -808,63 +806,147 @@ ASTNode *parse_activity_def(Parser *p) {
         advance(p);
         first = 0;
     }
-    strncpy(node->as.activity_def.name, name, MAX_TOKEN_LEN - 1);
+    AST_SET_STR(node->as.activity_def.name, name);
 
     nodelist_init(&node->as.activity_def.params);
     nodelist_init(&node->as.activity_def.body);
 
-    /* Inline one-liner: to add, return x plus y! */
+    if (match(p, TOKEN_TAKING)) {
+        for (;;) {
+            if (!is_identifier_word(current(p).type)) break;
+
+            Token param = advance(p);
+            ASTNode *pn = ast_make_node(NODE_IDENTIFIER, param.line, param.col);
+            AST_SET_STR(pn->as.identifier.name, param.value);
+            nodelist_push(&node->as.activity_def.params, pn);
+
+            if (check(p, TOKEN_COMMA) &&
+                is_identifier_word(peek_at(p, 1).type)) {
+                advance(p);
+                continue;
+            }
+            break;
+        }
+    }
+
     if (match(p, TOKEN_COMMA)) {
         ASTNode *stmt = parse_statement(p);
         if (stmt) nodelist_push(&node->as.activity_def.body, stmt);
         match(p, TOKEN_TERMINATOR);
-        node->end_line = current(p).line;   /* v1.5 */
+        node->end_line = current(p).line;
         return node;
     }
 
-    /* Multi-line body */
     parse_block(p, &node->as.activity_def.body);
-    node->end_line = current(p).line;   /* v1.5 */
+    node->end_line = current(p).line;
     return node;
 }
 
-
-/* ═════════════════════════════════════════════
-   RETURN STATEMENT
-   return <expression>
-   ═════════════════════════════════════════════ */
 ASTNode *parse_return(Parser *p) {
-    Token t = advance(p);   /* consume 'return' */
+    Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_RETURN, t.line, t.col);
     node->as.return_stmt.value = parse_expression(p);
     return node;
 }
 
+ASTNode *parse_import(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_IMPORT, t.line, t.col);
+    node->as.import_stmt.source[0] = '\0';
+    node->as.import_stmt.alias[0]  = '\0';
 
-/* ═════════════════════════════════════════════
-   CHECK STATEMENT
-   check that <condition>
-   ═════════════════════════════════════════════ */
+    if (check(p, TOKEN_STRING)) {
+        AST_SET_STR(node->as.import_stmt.source, current(p).value);
+        advance(p);
+    } else {
+        parser_error(p, "import expects a quoted module path, e.g. import \"utils.EP\"");
+        return node;
+    }
+
+    if (check(p, TOKEN_AS)) {
+        advance(p);
+        if (check(p, TOKEN_IDENTIFIER)) {
+            AST_SET_STR(node->as.import_stmt.alias, current(p).value);
+            advance(p);
+        }
+    }
+    return node;
+}
+
+ASTNode *parse_db_make_table(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_DB_MAKE_TABLE, t.line, t.col);
+    node->as.db_table.table = parse_primary(p);
+    return node;
+}
+
+ASTNode *parse_db_save(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_DB_INSERT, t.line, t.col);
+    node->as.db_insert.table = parse_primary(p);
+    nodelist_init(&node->as.db_insert.field_names);
+    nodelist_init(&node->as.db_insert.field_values);
+
+    if (!match(p, TOKEN_WITH)) {
+        parser_error(p, "save into \"T\" expects 'with field as value, ...'");
+        return node;
+    }
+
+    do {
+        char fname[MAX_TOKEN_LEN] = {0};
+        collect_name(p, fname, MAX_TOKEN_LEN);
+        ASTNode *fn = ast_make_node(NODE_STRING, current(p).line, current(p).col);
+        AST_SET_STR(fn->as.string.value, fname);
+
+        if (!match(p, TOKEN_AS)) {
+            parser_error(p, "expected 'as' between field name and value");
+            ast_free(fn);
+            return node;
+        }
+        ASTNode *val = parse_expression(p);
+
+        nodelist_push(&node->as.db_insert.field_names,  fn);
+        nodelist_push(&node->as.db_insert.field_values, val);
+    } while (match(p, TOKEN_COMMA));
+
+    return node;
+}
+
+ASTNode *parse_db_delete(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_DB_DELETE, t.line, t.col);
+    node->as.db_filter.table     = parse_primary(p);
+    node->as.db_filter.condition = NULL;
+    node->as.db_filter.item_var[0] = '\0';
+
+    if (check(p, TOKEN_WHERE)) {
+        advance(p);
+        int saved = p->current;
+        if (is_identifier_word(current(p).type)) {
+            char name[MAX_TOKEN_LEN] = {0};
+            collect_name(p, name, MAX_TOKEN_LEN);
+            AST_SET_STR(node->as.db_filter.item_var, name);
+            p->current = saved;
+        } else {
+            AST_SET_STR(node->as.db_filter.item_var, "item");
+        }
+        node->as.db_filter.condition = parse_logical(p);
+    }
+    return node;
+}
+
 ASTNode *parse_check(Parser *p) {
-    Token t = advance(p);   /* consume 'check' */
+    Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_CHECK, t.line, t.col);
-    match(p, TOKEN_THAT);   /* consume optional 'that' */
+    match(p, TOKEN_THAT);
     node->as.check_stmt.condition = parse_expression(p);
     return node;
 }
 
-
-/* ═════════════════════════════════════════════
-   DESCRIBE STATEMENT
-   describe <name> as "<text>"
-   ═════════════════════════════════════════════ */
 ASTNode *parse_describe(Parser *p) {
-    Token t = advance(p);   /* consume 'describe' */
+    Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_DESCRIBE, t.line, t.col);
 
-    /* Collect the describe label — allow any token (incl. keywords)
-       until we hit 'as', newline, or EOF.  This lets users write
-       "describe add as ..." or "describe grade analyzer as ..." */
     char name[MAX_TOKEN_LEN] = {0};
     int first = 1;
     while (!check(p, TOKEN_AS)      &&
@@ -875,13 +957,13 @@ ASTNode *parse_describe(Parser *p) {
         advance(p);
         first = 0;
     }
-    strncpy(node->as.describe_stmt.name, name, MAX_TOKEN_LEN - 1);
+    AST_SET_STR(node->as.describe_stmt.name, name);
 
     expect(p, TOKEN_AS, "Expected 'as' in describe statement");
 
     if (check(p, TOKEN_STRING)) {
-        strncpy(node->as.describe_stmt.text,
-            current(p).value, MAX_TOKEN_LEN - 1);
+        AST_SET_STR(node->as.describe_stmt.text,
+            current(p).value);
         advance(p);
     } else {
         parser_error(p, "Expected string after 'as' in describe");
@@ -890,40 +972,30 @@ ASTNode *parse_describe(Parser *p) {
     return node;
 }
 
+static void skip_filler_word(Parser *p, const char *word) {
+    if (strcasecmp(current(p).value, word) == 0) advance(p);
+}
 
-/* ═════════════════════════════════════════════
-   PROVIDE STATEMENT
-   provide <var> as user entry from "<prompt>"
-   ═════════════════════════════════════════════ */
 ASTNode *parse_provide(Parser *p) {
-    Token t = advance(p);   /* consume 'provide' */
+    Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_PROVIDE, t.line, t.col);
 
     char name[MAX_TOKEN_LEN] = {0};
     collect_name(p, name, MAX_TOKEN_LEN);
-    strncpy(node->as.provide_stmt.var, name, MAX_TOKEN_LEN - 1);
+    AST_SET_STR(node->as.provide_stmt.var, name);
 
     expect(p, TOKEN_AS,    "Expected 'as' in provide statement");
-    match(p, TOKEN_USER);  /* consume 'user'  */
-    match(p, TOKEN_INPUT); /* consume 'input' if present */
-    match(p, TOKEN_ENTRY); /* consume 'entry' if present */
-    match(p, TOKEN_FROM);  /* consume 'from'  */
+    skip_filler_word(p, "user");
+    skip_filler_word(p, "input");
+    skip_filler_word(p, "entry");
+    match(p, TOKEN_FROM);
 
     node->as.provide_stmt.prompt = parse_expression(p);
     return node;
 }
 
-
-/* ═════════════════════════════════════════════
-   ATTEMPT STATEMENT
-   attempt
-       <body>
-   if fails then
-       <body>
-   !
-   ═════════════════════════════════════════════ */
 ASTNode *parse_attempt(Parser *p) {
-    Token t = advance(p);   /* consume 'attempt' */
+    Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_ATTEMPT, t.line, t.col);
 
     nodelist_init(&node->as.attempt_stmt.try_body);
@@ -931,7 +1003,6 @@ ASTNode *parse_attempt(Parser *p) {
 
     skip_newlines(p);
 
-    /* Read try body until 'if fails' or ! or EOF */
     while (!check(p, TOKEN_IF_FAILS) &&
            !check(p, TOKEN_TERMINATOR) &&
            !check(p, TOKEN_EOF)) {
@@ -945,7 +1016,6 @@ ASTNode *parse_attempt(Parser *p) {
         skip_newlines(p);
     }
 
-    /* Optional: if fails then <body> */
     if (match(p, TOKEN_IF_FAILS)) {
         match(p, TOKEN_THEN);
         skip_newlines(p);
@@ -959,17 +1029,13 @@ ASTNode *parse_attempt(Parser *p) {
         }
     }
 
-    match(p, TOKEN_TERMINATOR);
-    node->end_line = current(p).line;   /* v1.5 */
+    close_block(p, t.line);
+    node->end_line = current(p).line;
     return node;
 }
 
-/* ═════════════════════════════════════════════
-   ADD TO STATEMENT
-   add <expression> to <list_name>
-   ═════════════════════════════════════════════ */
 ASTNode *parse_add_to(Parser *p) {
-    Token t = advance(p);   /* consume 'add' */
+    Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_ADD_TO, t.line, t.col);
 
     node->as.add_to.item = parse_expression(p);
@@ -977,8 +1043,8 @@ ASTNode *parse_add_to(Parser *p) {
     expect(p, TOKEN_TO, "Expected 'to' in 'add ... to ...'");
 
     if (check(p, TOKEN_IDENTIFIER)) {
-        strncpy(node->as.add_to.list,
-            current(p).value, MAX_TOKEN_LEN - 1);
+        AST_SET_STR(node->as.add_to.list,
+            current(p).value);
         advance(p);
     } else {
         parser_error(p, "Expected list name after 'to' in add statement");
@@ -987,59 +1053,45 @@ ASTNode *parse_add_to(Parser *p) {
     return node;
 }
 
-
-/* ═════════════════════════════════════════════
-   LINK STATEMENT  (v1.3)
-   link <from> to <to> in <graph>
-   ═════════════════════════════════════════════ */
 ASTNode *parse_link(Parser *p) {
-    Token t = advance(p);   /* consume 'link' */
+    Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_LINK, t.line, t.col);
 
-    /* collect 'from' name */
     char from[MAX_TOKEN_LEN] = {0};
     while (!check(p, TOKEN_TO) && !check(p, TOKEN_EOF) && !check(p, TOKEN_NEWLINE)) {
         if (strlen(from) > 0) strncat(from, " ", MAX_TOKEN_LEN - strlen(from) - 1);
         strncat(from, current(p).value, MAX_TOKEN_LEN - strlen(from) - 1);
         advance(p);
     }
-    strncpy(node->as.link_stmt.from, from, MAX_TOKEN_LEN - 1);
+    AST_SET_STR(node->as.link_stmt.from, from);
 
     expect(p, TOKEN_TO, "Expected 'to' in link statement");
 
-    /* collect 'to' name */
     char to[MAX_TOKEN_LEN] = {0};
     while (!check(p, TOKEN_IN) && !check(p, TOKEN_EOF) && !check(p, TOKEN_NEWLINE)) {
         if (strlen(to) > 0) strncat(to, " ", MAX_TOKEN_LEN - strlen(to) - 1);
         strncat(to, current(p).value, MAX_TOKEN_LEN - strlen(to) - 1);
         advance(p);
     }
-    strncpy(node->as.link_stmt.to, to, MAX_TOKEN_LEN - 1);
+    AST_SET_STR(node->as.link_stmt.to, to);
 
     expect(p, TOKEN_IN, "Expected 'in <graph>' in link statement");
 
-    /* graph variable name */
     char graph[MAX_TOKEN_LEN] = {0};
     collect_name(p, graph, MAX_TOKEN_LEN);
-    strncpy(node->as.link_stmt.graph, graph, MAX_TOKEN_LEN - 1);
+    AST_SET_STR(node->as.link_stmt.graph, graph);
 
     return node;
 }
 
-
-/* ═════════════════════════════════════════════
-   NODE3D  (v1.6)
-   node at 0.5 labeled "Task" status "completed"
-   ═════════════════════════════════════════════ */
 ASTNode *parse_node3d(Parser *p) {
-    Token t = advance(p);   /* consume 'node' */
+    Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_NODE3D, t.line, t.col);
     node->as.node3d.angle  = 0.0;
     node->as.node3d.status = NODE3D_PENDING;
     node->as.node3d.label[0]= '\0';
     node->as.node3d.desc[0] = '\0';
 
-    /* at <number> */
     if (check(p, TOKEN_AT_KW)) {
         advance(p);
         if (check(p, TOKEN_NUMBER)) {
@@ -1047,16 +1099,14 @@ ASTNode *parse_node3d(Parser *p) {
             advance(p);
         }
     }
-    /* labeled "text" */
     if (check(p, TOKEN_LABELED)) {
         advance(p);
         if (check(p, TOKEN_STRING)) {
-            strncpy(node->as.node3d.label,
-                current(p).value, MAX_TOKEN_LEN-1);
+            AST_SET_STR(node->as.node3d.label,
+                current(p).value);
             advance(p);
         }
     }
-    /* status "completed|inprogress|overdue|pending" */
     if (check(p, TOKEN_STATUS_KW)) {
         advance(p);
         if (check(p, TOKEN_STRING)) {
@@ -1071,48 +1121,36 @@ ASTNode *parse_node3d(Parser *p) {
     return node;
 }
 
-
-/* ═════════════════════════════════════════════
-   CORE STAR  (v1.6)
-   core star color "gold" labeled "Project"
-   ═════════════════════════════════════════════ */
 ASTNode *parse_core_star(Parser *p) {
-    Token t = advance(p);   /* consume 'core' */
+    Token t = advance(p);
     match(p, TOKEN_STAR_KW);
     ASTNode *node = ast_make_node(NODE_CORE_STAR, t.line, t.col);
     node->as.core_star.color[0] = '\0';
     node->as.core_star.label[0] = '\0';
     node->as.core_star.desc[0]  = '\0';
-    strncpy(node->as.core_star.color, "gold", MAX_TOKEN_LEN-1);
+    AST_SET_STR(node->as.core_star.color, "gold");
 
     if (check(p, TOKEN_WITH_COLOR)) {
         advance(p);
         if (check(p, TOKEN_STRING)) {
-            strncpy(node->as.core_star.color,
-                current(p).value, MAX_TOKEN_LEN-1);
+            AST_SET_STR(node->as.core_star.color,
+                current(p).value);
             advance(p);
         }
     }
     if (check(p, TOKEN_LABELED)) {
         advance(p);
         if (check(p, TOKEN_STRING)) {
-            strncpy(node->as.core_star.label,
-                current(p).value, MAX_TOKEN_LEN-1);
+            AST_SET_STR(node->as.core_star.label,
+                current(p).value);
             advance(p);
         }
     }
     return node;
 }
 
-
-/* ═════════════════════════════════════════════
-   ORBITAL RING  (v1.6)
-   orbital ring radius 62 color "indigo" speed 0.007
-       node at 0.5 labeled "Task" status "completed"
-   !
-   ═════════════════════════════════════════════ */
 ASTNode *parse_orbital_ring(Parser *p) {
-    Token t = advance(p);   /* consume 'orbital' */
+    Token t = advance(p);
     match(p, TOKEN_RING_KW);
     ASTNode *node = ast_make_node(NODE_ORBITAL_RING, t.line, t.col);
     nodelist_init(&node->as.orbital_ring.nodes);
@@ -1120,9 +1158,8 @@ ASTNode *parse_orbital_ring(Parser *p) {
     node->as.orbital_ring.speed  = 0.003;
     node->as.orbital_ring.tilt_x = 0.0;
     node->as.orbital_ring.tilt_z = 0.0;
-    strncpy(node->as.orbital_ring.color, "indigo", MAX_TOKEN_LEN-1);
+    AST_SET_STR(node->as.orbital_ring.color, "indigo");
 
-    /* radius N */
     if (check(p, TOKEN_RADIUS_KW)) {
         advance(p);
         if (check(p, TOKEN_NUMBER)) {
@@ -1130,16 +1167,14 @@ ASTNode *parse_orbital_ring(Parser *p) {
             advance(p);
         }
     }
-    /* color "name" */
     if (check(p, TOKEN_WITH_COLOR)||check(p, TOKEN_STYLED)) {
         advance(p);
         if (check(p, TOKEN_STRING)) {
-            strncpy(node->as.orbital_ring.color,
-                current(p).value, MAX_TOKEN_LEN-1);
+            AST_SET_STR(node->as.orbital_ring.color,
+                current(p).value);
             advance(p);
         }
     }
-    /* speed N */
     if (check(p, TOKEN_SPEED_KW)) {
         advance(p);
         if (check(p, TOKEN_NUMBER)) {
@@ -1147,7 +1182,6 @@ ASTNode *parse_orbital_ring(Parser *p) {
             advance(p);
         }
     }
-    /* tilt x N z N (optional) */
     if (check(p, TOKEN_X_AXIS)) {
         advance(p);
         if (check(p, TOKEN_NUMBER)) {
@@ -1163,7 +1197,6 @@ ASTNode *parse_orbital_ring(Parser *p) {
         }
     }
 
-    /* nodes until ! */
     while (!check(p, TOKEN_TERMINATOR) && !check(p, TOKEN_EOF)) {
         if (check(p, TOKEN_NEWLINE)) { advance(p); continue; }
         if (check(p, TOKEN_NODE_3D)) {
@@ -1178,16 +1211,8 @@ ASTNode *parse_orbital_ring(Parser *p) {
     return node;
 }
 
-
-/* ═════════════════════════════════════════════
-   CANVAS3D  (v1.6)
-   canvas3d "name" background "deep space"
-       orbital ring ... !
-       core star ...
-   !
-   ═════════════════════════════════════════════ */
 ASTNode *parse_canvas3d(Parser *p) {
-    Token t = advance(p);   /* consume 'canvas3d' */
+    Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_CANVAS3D, t.line, t.col);
     nodelist_init(&node->as.canvas3d.children);
     node->as.canvas3d.background = BG3D_DEEP_SPACE;
@@ -1195,14 +1220,12 @@ ASTNode *parse_canvas3d(Parser *p) {
     node->as.canvas3d.name[0]    = '\0';
     node->as.canvas3d.bg_color[0]= '\0';
 
-    /* optional name string */
     if (check(p, TOKEN_STRING)) {
-        strncpy(node->as.canvas3d.name,
-            current(p).value, MAX_TOKEN_LEN-1);
+        AST_SET_STR(node->as.canvas3d.name,
+            current(p).value);
         advance(p);
     }
 
-    /* background "preset" */
     if (check(p, TOKEN_BACKGROUND_KW)) {
         advance(p);
         if (check(p, TOKEN_STRING)) {
@@ -1212,19 +1235,17 @@ ASTNode *parse_canvas3d(Parser *p) {
             else if (strstr(bg,"nebula"))node->as.canvas3d.background = BG3D_NEBULA;
             else {
                 node->as.canvas3d.background = BG3D_CUSTOM;
-                strncpy(node->as.canvas3d.bg_color, bg, MAX_TOKEN_LEN-1);
+                AST_SET_STR(node->as.canvas3d.bg_color, bg);
             }
             advance(p);
         }
     }
 
-    /* offline keyword */
     if (check(p, TOKEN_OFFLINE)) {
         node->as.canvas3d.offline = 1;
         advance(p);
     }
 
-    /* children until ! */
     while (!check(p, TOKEN_TERMINATOR) && !check(p, TOKEN_EOF)) {
         if (check(p, TOKEN_NEWLINE)) { advance(p); continue; }
         ASTNode *child = parse_statement(p);
@@ -1235,16 +1256,8 @@ ASTNode *parse_canvas3d(Parser *p) {
     return node;
 }
 
-
-/* ═════════════════════════════════════════════
-   PANEL3D  (v1.6)
-   panel "right"
-       heading "Title"
-       make stat "Active" from 12
-   !
-   ═════════════════════════════════════════════ */
 ASTNode *parse_panel3d(Parser *p) {
-    Token t = advance(p);   /* consume 'panel' */
+    Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_PANEL3D, t.line, t.col);
     nodelist_init(&node->as.panel3d.children);
     node->as.panel3d.position = PANEL_RIGHT;
@@ -1268,13 +1281,6 @@ ASTNode *parse_panel3d(Parser *p) {
     return node;
 }
 
-
-/* ═════════════════════════════════════════════
-   DRAWER3D  (v1.6)
-   drawer "right" titled "All Tasks"
-       make table from tasks ...
-   !
-   ═════════════════════════════════════════════ */
 ASTNode *parse_drawer3d(Parser *p) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_DRAWER3D, t.line, t.col);
@@ -1290,8 +1296,8 @@ ASTNode *parse_drawer3d(Parser *p) {
     if (check(p, TOKEN_TITLED)) {
         advance(p);
         if (check(p, TOKEN_STRING)) {
-            strncpy(node->as.drawer3d.title,
-                current(p).value, MAX_TOKEN_LEN-1);
+            AST_SET_STR(node->as.drawer3d.title,
+                current(p).value);
             advance(p);
         }
     }
@@ -1306,11 +1312,6 @@ ASTNode *parse_drawer3d(Parser *p) {
     return node;
 }
 
-
-/* ═════════════════════════════════════════════
-   TEXT NODE  (v1.4)
-   heading "text" / paragraph "text" / etc.
-   ═════════════════════════════════════════════ */
 ASTNode *parse_text_node(Parser *p, NodeType type) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(type, t.line, t.col);
@@ -1318,39 +1319,28 @@ ASTNode *parse_text_node(Parser *p, NodeType type) {
     return node;
 }
 
-
-/* ═════════════════════════════════════════════
-   SECTION  (v1.4)
-   section "title" ... !
-   ═════════════════════════════════════════════ */
 ASTNode *parse_section(Parser *p) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_SECTION_OUT, t.line, t.col);
     nodelist_init(&node->as.section_out.children);
     node->as.section_out.title[0] = '\0';
 
-    /* optional title string */
     if (check(p, TOKEN_STRING)) {
-        strncpy(node->as.section_out.title,
-            current(p).value, MAX_TOKEN_LEN - 1);
+        AST_SET_STR(node->as.section_out.title,
+            current(p).value);
         advance(p);
     }
 
-    /* consume children until ! */
     while (!check(p, TOKEN_TERMINATOR) && !check(p, TOKEN_EOF)) {
         if (check(p, TOKEN_NEWLINE)) { advance(p); continue; }
         ASTNode *child = parse_statement(p);
         if (child) nodelist_push(&node->as.section_out.children, child);
     }
     match(p, TOKEN_TERMINATOR);
-    node->end_line = current(p).line;   /* v1.5 */
+    node->end_line = current(p).line;
     return node;
 }
 
-/* ═════════════════════════════════════════════
-   ROW  (v1.4)
-   row ... !
-   ═════════════════════════════════════════════ */
 ASTNode *parse_row(Parser *p) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_ROW, t.line, t.col);
@@ -1362,23 +1352,18 @@ ASTNode *parse_row(Parser *p) {
         if (child) nodelist_push(&node->as.row_out.children, child);
     }
     match(p, TOKEN_TERMINATOR);
-    node->end_line = current(p).line;   /* v1.5 */
+    node->end_line = current(p).line;
     return node;
 }
 
-/* ═════════════════════════════════════════════
-   MAKE STAT  (v1.4)
-   make stat "label" from value
-   ═════════════════════════════════════════════ */
 ASTNode *parse_make_stat(Parser *p) {
-    Token t = advance(p);   /* consume 'stat' */
+    Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_MAKE_STAT, t.line, t.col);
     node->as.make_stat.label[0] = '\0';
 
-    /* label string */
     if (check(p, TOKEN_STRING)) {
-        strncpy(node->as.make_stat.label,
-            current(p).value, MAX_TOKEN_LEN - 1);
+        AST_SET_STR(node->as.make_stat.label,
+            current(p).value);
         advance(p);
     }
 
@@ -1387,21 +1372,14 @@ ASTNode *parse_make_stat(Parser *p) {
     return node;
 }
 
-
-/* ═════════════════════════════════════════════
-   MAKE CHART  (v1.4)
-   make line chart for x axis as months and y axis as revenue titled "T"
-   ═════════════════════════════════════════════ */
 ASTNode *parse_make_chart(Parser *p) {
-    Token t = advance(p);   /* consume chart type token */
+    Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_MAKE_CHART, t.line, t.col);
 
-    /* determine chart type */
     if (t.type == TOKEN_LINE_CHART)     node->as.make_chart.type = CHART_LINE;
     else if (t.type == TOKEN_BAR_CHART) node->as.make_chart.type = CHART_BAR;
     else                                node->as.make_chart.type = CHART_PIE;
 
-    /* consume 'chart' keyword if present */
     if (check(p, TOKEN_MAKE_CHART)) advance(p);
 
     node->as.make_chart.title[0]    = '\0';
@@ -1411,25 +1389,23 @@ ASTNode *parse_make_chart(Parser *p) {
     node->as.make_chart.x_data      = NULL;
     node->as.make_chart.y_data      = NULL;
 
-    /* pie chart: make pie chart from labels and values */
     if (node->as.make_chart.type == CHART_PIE) {
         match(p, TOKEN_FROM);
         node->as.make_chart.x_data = parse_primary(p);
         match(p, TOKEN_AND);
         node->as.make_chart.y_data = parse_primary(p);
     } else {
-        /* for x axis as <var> and y axis as <var> */
         match(p, TOKEN_FOR);
         match(p, TOKEN_X_AXIS);
         match(p, TOKEN_AXIS);
         match(p, TOKEN_AS);
         char xname[MAX_TOKEN_LEN] = {0};
         collect_name(p, xname, MAX_TOKEN_LEN);
-        strncpy(node->as.make_chart.x_label, xname, MAX_TOKEN_LEN - 1);
+        AST_SET_STR(node->as.make_chart.x_label, xname);
         node->as.make_chart.x_data = ast_make_node(NODE_IDENTIFIER,
             t.line, t.col);
-        strncpy(node->as.make_chart.x_data->as.identifier.name,
-            xname, MAX_TOKEN_LEN - 1);
+        AST_SET_STR(node->as.make_chart.x_data->as.identifier.name,
+            xname);
 
         match(p, TOKEN_AND);
         match(p, TOKEN_Y_AXIS);
@@ -1437,19 +1413,18 @@ ASTNode *parse_make_chart(Parser *p) {
         match(p, TOKEN_AS);
         char yname[MAX_TOKEN_LEN] = {0};
         collect_name(p, yname, MAX_TOKEN_LEN);
-        strncpy(node->as.make_chart.y_label, yname, MAX_TOKEN_LEN - 1);
+        AST_SET_STR(node->as.make_chart.y_label, yname);
         node->as.make_chart.y_data = ast_make_node(NODE_IDENTIFIER,
             t.line, t.col);
-        strncpy(node->as.make_chart.y_data->as.identifier.name,
-            yname, MAX_TOKEN_LEN - 1);
+        AST_SET_STR(node->as.make_chart.y_data->as.identifier.name,
+            yname);
     }
 
-    /* titled "..." */
     if (check(p, TOKEN_TITLED)) {
         advance(p);
         if (check(p, TOKEN_STRING)) {
-            strncpy(node->as.make_chart.title,
-                current(p).value, MAX_TOKEN_LEN - 1);
+            AST_SET_STR(node->as.make_chart.title,
+                current(p).value);
             advance(p);
         }
     }
@@ -1457,11 +1432,6 @@ ASTNode *parse_make_chart(Parser *p) {
     return node;
 }
 
-
-/* ═════════════════════════════════════════════
-   MAKE TABLE  (v1.4)
-   make table from data titled "T" with headers [...]
-   ═════════════════════════════════════════════ */
 ASTNode *parse_make_table_out(Parser *p) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_MAKE_TABLE_OUT, t.line, t.col);
@@ -1475,8 +1445,8 @@ ASTNode *parse_make_table_out(Parser *p) {
     if (check(p, TOKEN_TITLED)) {
         advance(p);
         if (check(p, TOKEN_STRING)) {
-            strncpy(node->as.make_table_out.title,
-                current(p).value, MAX_TOKEN_LEN - 1);
+            AST_SET_STR(node->as.make_table_out.title,
+                current(p).value);
             advance(p);
         }
     }
@@ -1490,11 +1460,6 @@ ASTNode *parse_make_table_out(Parser *p) {
     return node;
 }
 
-
-/* ═════════════════════════════════════════════
-   MAKE REPORT  (v1.4)
-   make report from data titled "T"
-   ═════════════════════════════════════════════ */
 ASTNode *parse_make_report(Parser *p) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_MAKE_REPORT, t.line, t.col);
@@ -1507,8 +1472,8 @@ ASTNode *parse_make_report(Parser *p) {
     if (check(p, TOKEN_TITLED)) {
         advance(p);
         if (check(p, TOKEN_STRING)) {
-            strncpy(node->as.make_report.title,
-                current(p).value, MAX_TOKEN_LEN - 1);
+            AST_SET_STR(node->as.make_report.title,
+                current(p).value);
             advance(p);
         }
     }
@@ -1516,33 +1481,24 @@ ASTNode *parse_make_report(Parser *p) {
     return node;
 }
 
-
-/* ═════════════════════════════════════════════
-   MAKE PAGE  (v1.4)
-   make page saved as "x.html" styled as "dark"
-       ...children...
-   !
-   ═════════════════════════════════════════════ */
 ASTNode *parse_make_page(Parser *p) {
-    Token t = advance(p);   /* consume 'page' */
+    Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_MAKE_PAGE, t.line, t.col);
     nodelist_init(&node->as.make_page.children);
     node->as.make_page.filename[0] = '\0';
     node->as.make_page.color[0]    = '\0';
     node->as.make_page.theme       = THEME_LIGHT;
 
-    /* saved as "filename.html" */
     if (check(p, TOKEN_SAVED)) {
         advance(p);
         match(p, TOKEN_AS);
         if (check(p, TOKEN_STRING)) {
-            strncpy(node->as.make_page.filename,
-                current(p).value, MAX_TOKEN_LEN - 1);
+            AST_SET_STR(node->as.make_page.filename,
+                current(p).value);
             advance(p);
         }
     }
 
-    /* styled as "dark" / "light" / "indigo" / "emerald" / "rose" */
     if (check(p, TOKEN_STYLED)) {
         advance(p);
         match(p, TOKEN_AS);
@@ -1554,50 +1510,40 @@ ASTNode *parse_make_page(Parser *p) {
             else if (strcmp(theme, "rose")    == 0) node->as.make_page.theme = THEME_ROSE;
             else if (strcmp(theme, "light")   == 0) node->as.make_page.theme = THEME_LIGHT;
             else {
-                /* Any unrecognised string → custom full-palette color.
-                   CSS accepts: hex (#ff69b4), named (hotpink), or descriptive
-                   multi-word names resolved by the codegen lookup table. */
                 node->as.make_page.theme = THEME_CUSTOM;
-                strncpy(node->as.make_page.color, theme, MAX_TOKEN_LEN - 1);
+                AST_SET_STR(node->as.make_page.color, theme);
             }
             advance(p);
         }
     }
 
-    /* with color "hex" */
     if (check(p, TOKEN_WITH)) {
         advance(p);
         if (check(p, TOKEN_WITH_COLOR)) {
             advance(p);
             if (check(p, TOKEN_STRING)) {
-                strncpy(node->as.make_page.color,
-                    current(p).value, MAX_TOKEN_LEN - 1);
+                AST_SET_STR(node->as.make_page.color,
+                    current(p).value);
                 advance(p);
             }
         }
     }
 
-    /* children until ! */
     while (!check(p, TOKEN_TERMINATOR) && !check(p, TOKEN_EOF)) {
         if (check(p, TOKEN_NEWLINE)) { advance(p); continue; }
         ASTNode *child = parse_statement(p);
         if (child) nodelist_push(&node->as.make_page.children, child);
     }
     match(p, TOKEN_TERMINATOR);
-    node->end_line = current(p).line;   /* v1.5 */
+    node->end_line = current(p).line;
     return node;
 }
 
-/* ═════════════════════════════════════════════
-   WAIT STATEMENT
-   wait for enter key with message "<msg>"
-   ═════════════════════════════════════════════ */
 ASTNode *parse_wait(Parser *p) {
-    Token t = advance(p);   /* consume 'wait' */
+    Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_WAIT, t.line, t.col);
     node->as.wait_stmt.message[0] = '\0';
 
-    /* Consume: for enter key with message */
     while (!check(p, TOKEN_STRING) &&
            !check(p, TOKEN_NEWLINE) &&
            !check(p, TOKEN_TERMINATOR) &&
@@ -1606,47 +1552,39 @@ ASTNode *parse_wait(Parser *p) {
     }
 
     if (check(p, TOKEN_STRING)) {
-        strncpy(node->as.wait_stmt.message,
-            current(p).value, MAX_TOKEN_LEN - 1);
+        AST_SET_STR(node->as.wait_stmt.message,
+            current(p).value);
         advance(p);
     }
 
     return node;
 }
 
-
-/* ═════════════════════════════════════════════
-   EXECUTE STATEMENT
-   execute system command "cmd"
-   execute system command "cls" if windows otherwise "clear"
-   ═════════════════════════════════════════════ */
 ASTNode *parse_execute(Parser *p) {
-    Token t = advance(p);   /* consume 'execute' */
+    Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_EXECUTE, t.line, t.col);
     node->as.execute_stmt.conditional = 0;
     node->as.execute_stmt.command[0]  = '\0';
 
-    /* consume: system command */
     match(p, TOKEN_SYSTEM);
     match(p, TOKEN_COMMAND);
 
     if (check(p, TOKEN_STRING)) {
-        strncpy(node->as.execute_stmt.command,
-            current(p).value, MAX_TOKEN_LEN - 1);
+        AST_SET_STR(node->as.execute_stmt.command,
+            current(p).value);
         advance(p);
     } else {
         parser_error(p, "Expected command string in execute statement");
         return node;
     }
 
-    /* Optional: if windows otherwise "clear" */
     if (match(p, TOKEN_IF)) {
         match(p, TOKEN_WINDOWS);
         node->as.execute_stmt.conditional = 1;
         match(p, TOKEN_OTHERWISE);
         if (check(p, TOKEN_STRING)) {
-            strncpy(node->as.execute_stmt.alt_command,
-                current(p).value, MAX_TOKEN_LEN - 1);
+            AST_SET_STR(node->as.execute_stmt.alt_command,
+                current(p).value);
             advance(p);
         }
     }
@@ -1654,48 +1592,104 @@ ASTNode *parse_execute(Parser *p) {
     return node;
 }
 
+ASTNode *parse_write_file(Parser *p, NodeType kind) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(kind, t.line, t.col);
+    node->as.file_write.value_expr = parse_expression(p);
+    match(p, TOKEN_TO);
+    match(p, TOKEN_FILE_KW);
+    node->as.file_write.path_expr = parse_primary(p);
+    return node;
+}
 
-/* ═════════════════════════════════════════════
-   EXPRESSION PARSER
-   Handles the full precedence chain +
-   inline-if expressions.
-   ═════════════════════════════════════════════ */
+ASTNode *parse_delete_file(Parser *p) {
+    Token t = advance(p);
+    if (t.type == TOKEN_DELETE_KW) match(p, TOKEN_FILE_KW);
+    ASTNode *node = ast_make_node(NODE_DELETE_FILE, t.line, t.col);
+    node->as.file_op.path_expr = parse_primary(p);
+    return node;
+}
 
-/* Top level — checks for inline if and where filter */
+ASTNode *parse_sleep(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_SLEEP, t.line, t.col);
+    node->as.sleep_stmt.duration_expr = parse_primary(p);
+    return node;
+}
+
+ASTNode *parse_serve_socket(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_SERVE_SOCKET, t.line, t.col);
+    node->as.serve_socket.path_expr = parse_primary(p);
+    match(p, TOKEN_USING_KW);
+    char name[MAX_TOKEN_LEN] = {0};
+    collect_name(p, name, MAX_TOKEN_LEN);
+    AST_SET_STR(node->as.serve_socket.activity, name);
+    return node;
+}
+
+ASTNode *parse_serve_port(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_SERVE_PORT, t.line, t.col);
+    nodelist_init(&node->as.serve_port.offered);
+    node->as.serve_port.port_expr = parse_primary(p);
+
+    if (!(check(p, TOKEN_IDENTIFIER) &&
+          strcmp(current(p).value, "offering") == 0)) {
+        parser_error(p, "write the activities a page may call: "
+                        "serve on port 8080 offering sell, revenue");
+        return node;
+    }
+    advance(p);
+    for (;;) {
+        Token at = current(p);
+        char name[MAX_TOKEN_LEN] = {0};
+        collect_name(p, name, MAX_TOKEN_LEN);
+        if (!name[0]) {
+            parser_error(p, "expected an activity name after 'offering'");
+            return node;
+        }
+        ASTNode *id = ast_make_node(NODE_IDENTIFIER, at.line, at.col);
+        AST_SET_STR(id->as.identifier.name, name);
+        nodelist_push(&node->as.serve_port.offered, id);
+        if (!match(p, TOKEN_COMMA) && !match(p, TOKEN_AND)) break;
+    }
+    return node;
+}
+
+ASTNode *parse_reply_with(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_REPLY_WITH, t.line, t.col);
+    node->as.reply_with.value_expr = parse_expression(p);
+    return node;
+}
+
 ASTNode *parse_expression(Parser *p) {
     ASTNode *left = parse_logical(p);
 
-    /* Where filter: <collection> where <var> <condition>
-       e.g.  people where age is greater than 18
-             scores where score at least 60             */
     if (check(p, TOKEN_WHERE)) {
-        Token wt = advance(p);   /* consume 'where' */
+        Token wt = advance(p);
         ASTNode *node = ast_make_node(NODE_WHERE_FILTER, wt.line, wt.col);
         node->as.where_filter.collection = left;
 
-        /* The next identifier is the item variable name.
-           We collect it but DO NOT permanently advance the parser,
-           because the condition expression needs to parse it as its left operand. */
         int saved_pos = p->current;
         if (is_identifier_word(current(p).type)) {
             char name[MAX_TOKEN_LEN] = {0};
             collect_name(p, name, MAX_TOKEN_LEN);
-            strncpy(node->as.where_filter.item_var, name, MAX_TOKEN_LEN - 1);
-            p->current = saved_pos; /* restore */
+            AST_SET_STR(node->as.where_filter.item_var, name);
+            p->current = saved_pos;
         } else {
-            /* No explicit var — use "item" as default */
-            strncpy(node->as.where_filter.item_var, "item", MAX_TOKEN_LEN - 1);
+            AST_SET_STR(node->as.where_filter.item_var, "item");
         }
 
         node->as.where_filter.condition = parse_logical(p);
         return node;
     }
 
-    /* Inline if: <value> if <condition> otherwise <value> */
     if (check(p, TOKEN_IF)) {
         int line = current(p).line;
         int col  = current(p).col;
-        advance(p);   /* consume 'if' */
+        advance(p);
 
         ASTNode *node = ast_make_node(NODE_INLINE_IF, line, col);
         node->as.inline_if.then_val  = left;
@@ -1706,7 +1700,6 @@ ASTNode *parse_expression(Parser *p) {
         return node;
     }
 
-    /* String/value concatenation with + */
     while (check(p, TOKEN_PLUS)) {
         Token op = advance(p);
         ASTNode *right = parse_logical(p);
@@ -1720,7 +1713,6 @@ ASTNode *parse_expression(Parser *p) {
     return left;
 }
 
-/* Logical: and, or */
 ASTNode *parse_logical(Parser *p) {
     ASTNode *left = parse_comparison(p);
 
@@ -1736,7 +1728,6 @@ ASTNode *parse_logical(Parser *p) {
     return left;
 }
 
-/* Comparison: equals, is, greater than, less than, etc. */
 ASTNode *parse_comparison(Parser *p) {
     ASTNode *left = parse_additive(p);
 
@@ -1752,13 +1743,32 @@ ASTNode *parse_comparison(Parser *p) {
            check(p, TOKEN_IS_NONE_OF)   ||
            check(p, TOKEN_IN)) {
 
-        /* ── Type check: X is a number / is a string / is a list ── */
+        if ((check(p, TOKEN_IS) || check(p, TOKEN_IS_NOT)) &&
+            peek_at(p, 1).type == TOKEN_EMPTY &&
+            peek_at(p, 2).type != TOKEN_LIST_KW &&
+            !(peek_at(p, 2).type == TOKEN_IDENTIFIER &&
+              strcmp(peek_at(p, 2).value, "record") == 0)) {
+            Token op = advance(p);
+            advance(p);
+            ASTNode *chk = ast_make_node(NODE_TYPE_CHECK, op.line, op.col);
+            chk->as.type_check.kind   = TYPECHECK_EMPTY;
+            chk->as.type_check.target = left;
+            if (op.type == TOKEN_IS_NOT) {
+                ASTNode *neg = ast_make_node(NODE_UNARY_OP, op.line, op.col);
+                neg->as.unary_op.operator = TOKEN_NOT;
+                neg->as.unary_op.operand  = chk;
+                left = neg;
+            } else {
+                left = chk;
+            }
+            continue;
+        }
+
         if (check(p, TOKEN_IS)) {
-            /* peek two ahead for "a" + type keyword */
             int saved = p->current;
-            advance(p);  /* consume 'is' */
+            advance(p);
             if (check(p, TOKEN_A)) {
-                advance(p);  /* consume 'a' */
+                advance(p);
                 TypeCheckKind kind;
                 int matched = 1;
                 Token kw = current(p);
@@ -1769,7 +1779,7 @@ ASTNode *parse_comparison(Parser *p) {
                 else matched = 0;
 
                 if (matched) {
-                    advance(p);   /* consume type keyword */
+                    advance(p);
                     ASTNode *node = ast_make_node(NODE_TYPE_CHECK, kw.line, kw.col);
                     node->as.type_check.kind   = kind;
                     node->as.type_check.target = left;
@@ -1777,7 +1787,6 @@ ASTNode *parse_comparison(Parser *p) {
                     continue;
                 }
             }
-            /* not a type check — restore position */
             p->current = saved;
         }
 
@@ -1786,7 +1795,6 @@ ASTNode *parse_comparison(Parser *p) {
         node->as.binary_op.operator = op.type;
         node->as.binary_op.left     = left;
 
-        /* is any of / is none of — collect comma-separated values into list */
         if (op.type == TOKEN_IS_ANY_OF || op.type == TOKEN_IS_NONE_OF) {
             ASTNode *list_node = ast_make_node(NODE_LIST, op.line, op.col);
             nodelist_init(&list_node->as.list.elements);
@@ -1807,28 +1815,74 @@ ASTNode *parse_comparison(Parser *p) {
     return left;
 }
 
-/* Additive: plus, minus */
-ASTNode *parse_additive(Parser *p) {
-    ASTNode *left = parse_multiplicative(p);
+static int is_format_postfix(Parser *p) {
+    if (check(p, TOKEN_ROUNDED)) return 1;
+    if (!check(p, TOKEN_AS)) return 0;
+    TokenType next = peek_at(p, 1).type;
+    return next == TOKEN_CURRENCY || next == TOKEN_PERCENTAGE ||
+           next == TOKEN_FORMATTED;
+}
 
-    while (check(p, TOKEN_PLUS) || check(p, TOKEN_MINUS)) {
-        Token op = advance(p);
-        ASTNode *right = parse_multiplicative(p);
-        ASTNode *node  = ast_make_node(NODE_BINARY_OP, op.line, op.col);
-        node->as.binary_op.operator = op.type;
+static ASTNode *fold_additive(ASTNode **operands, Token *ops, int from, int to) {
+    ASTNode *left = operands[from];
+    for (int i = from + 1; i <= to; i++) {
+        ASTNode *node = ast_make_node(NODE_BINARY_OP, ops[i].line, ops[i].col);
+        node->as.binary_op.operator = ops[i].type;
         node->as.binary_op.left     = left;
-        node->as.binary_op.right    = right;
+        node->as.binary_op.right    = operands[i];
         left = node;
     }
     return left;
 }
 
-/* Multiplicative: times, divided by, modulo, power of */
+#define MAX_ADDITIVE_OPERANDS 64
+ASTNode *parse_additive(Parser *p) {
+    ASTNode *operands[MAX_ADDITIVE_OPERANDS];
+    Token    ops[MAX_ADDITIVE_OPERANDS];
+    int n = 0;
+    operands[n++] = parse_multiplicative(p);
+
+    while (check(p, TOKEN_PLUS) || check(p, TOKEN_MINUS)) {
+        Token op = advance(p);
+        ASTNode *right = parse_multiplicative(p);
+        if (n == MAX_ADDITIVE_OPERANDS) {
+            operands[0] = fold_additive(operands, ops, 0, n - 1);
+            n = 1;
+        }
+        ops[n] = op;
+        operands[n++] = right;
+    }
+
+    if (!is_format_postfix(p))
+        return fold_additive(operands, ops, 0, n - 1);
+
+    int start = 0;
+    for (int i = n - 1; i >= 0; i--) {
+        if (operands[i]->type == NODE_STRING) { start = i + 1; break; }
+    }
+    if (start >= n) start = 0;
+
+    ASTNode *tail = fold_additive(operands, ops, start, n - 1);
+    while (is_format_postfix(p)) {
+        ASTNode *formatted = parse_format_op(p, tail);
+        if (formatted == tail) break;
+        tail = formatted;
+    }
+    if (start == 0) return tail;
+
+    ASTNode *head = fold_additive(operands, ops, 0, start - 1);
+    ASTNode *node = ast_make_node(NODE_BINARY_OP, ops[start].line, ops[start].col);
+    node->as.binary_op.operator = ops[start].type;
+    node->as.binary_op.left     = head;
+    node->as.binary_op.right    = tail;
+    return node;
+}
+
 ASTNode *parse_multiplicative(Parser *p) {
     ASTNode *left = parse_unary(p);
 
-    while (check(p, TOKEN_TIMES_OP)  ||
-           check(p, TOKEN_TIMES)     ||
+    while ((check(p, TOKEN_TIMES_OP) && !p->no_times_op) ||
+           (check(p, TOKEN_TIMES)    && !p->no_times_op) ||
            check(p, TOKEN_DIVIDED_BY)||
            check(p, TOKEN_MODULO)    ||
            check(p, TOKEN_POWER_OF)) {
@@ -1843,8 +1897,14 @@ ASTNode *parse_multiplicative(Parser *p) {
     return left;
 }
 
-/* Unary: not */
 ASTNode *parse_unary(Parser *p) {
+    if (check(p, TOKEN_MINUS)) {
+        Token op = advance(p);
+        ASTNode *node = ast_make_node(NODE_UNARY_OP, op.line, op.col);
+        node->as.unary_op.operator = TOKEN_MINUS;
+        node->as.unary_op.operand  = parse_unary(p);
+        return node;
+    }
     if (check(p, TOKEN_NOT)) {
         Token op = advance(p);
         ASTNode *node = ast_make_node(NODE_UNARY_OP, op.line, op.col);
@@ -1855,7 +1915,6 @@ ASTNode *parse_unary(Parser *p) {
 
     ASTNode *node = parse_primary(p);
 
-    /* ── Postfix: string operations ── */
     while (check(p, TOKEN_IN)       ||
            check(p, TOKEN_TRIMMED)  ||
            check(p, TOKEN_SPLIT)    ||
@@ -1865,24 +1924,45 @@ ASTNode *parse_unary(Parser *p) {
            check(p, TOKEN_ENDS)     ||
            check(p, TOKEN_CONTAINS)) {
         ASTNode *result = parse_string_op(p, node);
-        if (result == node) break;   /* no match, stop */
+        if (result == node) break;
         node = result;
-    }
-
-    /* ── Postfix: format operations ── */
-    if (check(p, TOKEN_ROUNDED) || check(p, TOKEN_AS)) {
-        ASTNode *result = parse_format_op(p, node);
-        if (result != node) node = result;
     }
 
     return node;
 }
 
-/* Primary: literals, identifiers, lists, parens */
 ASTNode *parse_primary(Parser *p) {
     Token t = current(p);
 
-    /* Number */
+    if (t.type == TOKEN_DB_RECORDS) {
+        advance(p);
+        ASTNode *node = ast_make_node(NODE_DB_QUERY, t.line, t.col);
+        node->as.db_table.table = parse_primary(p);
+        return node;
+    }
+
+    if (t.type == TOKEN_DB_COUNT) {
+        advance(p);
+        ASTNode *node = ast_make_node(NODE_DB_COUNT, t.line, t.col);
+        node->as.db_filter.table     = parse_primary(p);
+        node->as.db_filter.condition = NULL;
+        node->as.db_filter.item_var[0] = '\0';
+        if (check(p, TOKEN_WHERE)) {
+            advance(p);
+            int saved = p->current;
+            if (is_identifier_word(current(p).type)) {
+                char name[MAX_TOKEN_LEN] = {0};
+                collect_name(p, name, MAX_TOKEN_LEN);
+                AST_SET_STR(node->as.db_filter.item_var, name);
+                p->current = saved;
+            } else {
+                AST_SET_STR(node->as.db_filter.item_var, "item");
+            }
+            node->as.db_filter.condition = parse_logical(p);
+        }
+        return node;
+    }
+
     if (t.type == TOKEN_NUMBER) {
         advance(p);
         ASTNode *node = ast_make_node(NODE_NUMBER, t.line, t.col);
@@ -1890,15 +1970,13 @@ ASTNode *parse_primary(Parser *p) {
         return node;
     }
 
-    /* String */
     if (t.type == TOKEN_STRING) {
         advance(p);
         ASTNode *node = ast_make_node(NODE_STRING, t.line, t.col);
-        strncpy(node->as.string.value, t.value, MAX_TOKEN_LEN - 1);
+        AST_SET_STR(node->as.string.value, t.value);
         return node;
     }
 
-    /* Boolean */
     if (t.type == TOKEN_BOOLEAN) {
         advance(p);
         ASTNode *node = ast_make_node(NODE_BOOLEAN, t.line, t.col);
@@ -1906,18 +1984,33 @@ ASTNode *parse_primary(Parser *p) {
         return node;
     }
 
-    /* Null / empty */
-    if (t.type == TOKEN_NULL || t.type == TOKEN_EMPTY) {
+    if (t.type == TOKEN_EMPTY) {
+        advance(p);
+        if (check(p, TOKEN_LIST_KW)) {
+            advance(p);
+            ASTNode *list = ast_make_node(NODE_LIST, t.line, t.col);
+            nodelist_init(&list->as.list.elements);
+            return list;
+        }
+        if (check(p, TOKEN_IDENTIFIER) && strcmp(current(p).value, "record") == 0) {
+            advance(p);
+            ASTNode *text = ast_make_node(NODE_STRING, t.line, t.col);
+            AST_SET_STR(text->as.string.value, "{}");
+            ASTNode *rec = ast_make_node(NODE_PARSE_JSON, t.line, t.col);
+            rec->as.json_convert.value_expr = text;
+            return rec;
+        }
+        return ast_make_node(NODE_NULL, t.line, t.col);
+    }
+    if (t.type == TOKEN_NULL) {
         advance(p);
         return ast_make_node(NODE_NULL, t.line, t.col);
     }
 
-    /* List literal */
     if (t.type == TOKEN_LBRACKET) {
         return parse_list_literal(p);
     }
 
-    /* Parenthesised expression */
     if (t.type == TOKEN_LPAREN) {
         advance(p);
         ASTNode *expr = parse_expression(p);
@@ -1925,17 +2018,14 @@ ASTNode *parse_primary(Parser *p) {
         return expr;
     }
 
-    /* item N of LIST — v1.5 index access */
     if (t.type == TOKEN_ITEM) {
-        advance(p);   /* consume 'item' */
+        advance(p);
         ASTNode *node = ast_make_node(NODE_INDEX_ACCESS, t.line, t.col);
-        node->as.index_access.index = parse_additive(p);   /* the index */
-        match(p, TOKEN_OF);                                  /* consume 'of' */
-        node->as.index_access.list  = parse_primary(p);    /* the collection */
+        node->as.index_access.index = parse_additive(p);
+        match(p, TOKEN_OF);
+        node->as.index_access.list  = parse_primary(p);
         return node;
     }
-
-    /* Graph ops  (v1.3) */
 
     if (t.type == TOKEN_GRAPH) {
         advance(p);
@@ -1943,92 +2033,180 @@ ASTNode *parse_primary(Parser *p) {
     }
 
     if (t.type == TOKEN_ROUTE) {
-        advance(p);   /* consume 'route' */
+        advance(p);
         ASTNode *node = ast_make_node(NODE_ROUTE, t.line, t.col);
 
         match(p, TOKEN_FROM);
 
-        /* collect from-name */
         char from[MAX_TOKEN_LEN] = {0};
         while (!check(p, TOKEN_TO) && !check(p, TOKEN_EOF) && !check(p, TOKEN_NEWLINE)) {
             if (strlen(from) > 0) strncat(from, " ", MAX_TOKEN_LEN - strlen(from) - 1);
             strncat(from, current(p).value, MAX_TOKEN_LEN - strlen(from) - 1);
             advance(p);
         }
-        strncpy(node->as.route_stmt.from, from, MAX_TOKEN_LEN - 1);
+        AST_SET_STR(node->as.route_stmt.from, from);
 
         expect(p, TOKEN_TO, "Expected 'to' in route expression");
 
-        /* collect to-name */
         char to[MAX_TOKEN_LEN] = {0};
         while (!check(p, TOKEN_IN) && !check(p, TOKEN_EOF) && !check(p, TOKEN_NEWLINE)) {
             if (strlen(to) > 0) strncat(to, " ", MAX_TOKEN_LEN - strlen(to) - 1);
             strncat(to, current(p).value, MAX_TOKEN_LEN - strlen(to) - 1);
             advance(p);
         }
-        strncpy(node->as.route_stmt.to, to, MAX_TOKEN_LEN - 1);
+        AST_SET_STR(node->as.route_stmt.to, to);
 
         expect(p, TOKEN_IN, "Expected 'in <graph>' in route expression");
 
         char graph[MAX_TOKEN_LEN] = {0};
         collect_name(p, graph, MAX_TOKEN_LEN);
-        strncpy(node->as.route_stmt.graph, graph, MAX_TOKEN_LEN - 1);
+        AST_SET_STR(node->as.route_stmt.graph, graph);
 
         return node;
     }
 
     if (t.type == TOKEN_CONNECTED) {
-        advance(p);   /* consume 'connected' */
+        advance(p);
         ASTNode *node = ast_make_node(NODE_CONNECTED, t.line, t.col);
 
         match(p, TOKEN_TO);
 
-        /* collect target name */
         char target[MAX_TOKEN_LEN] = {0};
         while (!check(p, TOKEN_IN) && !check(p, TOKEN_EOF) && !check(p, TOKEN_NEWLINE)) {
             if (strlen(target) > 0) strncat(target, " ", MAX_TOKEN_LEN - strlen(target) - 1);
             strncat(target, current(p).value, MAX_TOKEN_LEN - strlen(target) - 1);
             advance(p);
         }
-        strncpy(node->as.connected_stmt.target, target, MAX_TOKEN_LEN - 1);
+        AST_SET_STR(node->as.connected_stmt.target, target);
 
         expect(p, TOKEN_IN, "Expected 'in <graph>' in connected expression");
 
         char graph[MAX_TOKEN_LEN] = {0};
         collect_name(p, graph, MAX_TOKEN_LEN);
-        strncpy(node->as.connected_stmt.graph, graph, MAX_TOKEN_LEN - 1);
+        AST_SET_STR(node->as.connected_stmt.graph, graph);
 
         return node;
     }
 
-    /* Smart Collection ops  (v1.1)
-       average of X / total of X / sorted X / etc. */
     if (t.type == TOKEN_AVERAGE  ||
         t.type == TOKEN_TOTAL    ||
         t.type == TOKEN_MAXIMUM  ||
         t.type == TOKEN_MINIMUM  ||
-        t.type == TOKEN_LENGTH   ||
-        t.type == TOKEN_SORTED   ||
-        t.type == TOKEN_REVERSED) {
+        t.type == TOKEN_LENGTH) {
+        if (peek_at(p, 1).type == TOKEN_OF)
+            return parse_collection_op(p);
+    }
+    else if (t.type == TOKEN_SIZE_OF  ||
+             t.type == TOKEN_SORTED   ||
+             t.type == TOKEN_REVERSED ||
+             t.type == TOKEN_KEYS_OF  ||
+             t.type == TOKEN_CODE_OF  ||
+             t.type == TOKEN_CHAR_CODE ||
+             t.type == TOKEN_SHA256_OF ||
+             t.type == TOKEN_RANDOM_TOKEN) {
         return parse_collection_op(p);
     }
 
-    /* Identifier — variable or activity call */
+    if (t.type == TOKEN_RANDOM_NUMBER) {
+        advance(p);
+        ASTNode *node = ast_make_node(NODE_BINARY_OP, t.line, t.col);
+        node->as.binary_op.operator = TOKEN_RANDOM_NUMBER;
+        node->as.binary_op.left = parse_additive(p);
+        expect(p, TOKEN_TO, "Expected 'to' in 'random number from A to B'");
+        node->as.binary_op.right = parse_additive(p);
+        return node;
+    }
+
+    if (t.type == TOKEN_READ_FILE_PH || t.type == TOKEN_READ_KW) {
+        advance(p);
+        if (t.type == TOKEN_READ_KW) match(p, TOKEN_FILE_KW);
+        ASTNode *node = ast_make_node(NODE_READ_FILE, t.line, t.col);
+        node->as.file_op.path_expr = parse_primary(p);
+        return node;
+    }
+
+    if (t.type == TOKEN_FILE_EXISTS_PH) {
+        advance(p);
+        ASTNode *node = ast_make_node(NODE_FILE_EXISTS, t.line, t.col);
+        node->as.file_op.path_expr = parse_primary(p);
+        return node;
+    }
+
+    if (t.type == TOKEN_RUN_KW) {
+        advance(p);
+        ASTNode *node = ast_make_node(NODE_RUN_CMD, t.line, t.col);
+        node->as.run_cmd.cmd_expr = parse_primary(p);
+        return node;
+    }
+
+    if (t.type == TOKEN_GET_ENV_PH) {
+        advance(p);
+        ASTNode *node = ast_make_node(NODE_GET_ENV, t.line, t.col);
+        node->as.get_env.var_expr = parse_primary(p);
+        return node;
+    }
+
+    if (t.type == TOKEN_NOW_KW) {
+        advance(p);
+        return ast_make_node(NODE_NOW, t.line, t.col);
+    }
+
+    if (t.type == TOKEN_ERROR_MSG_PH) {
+        advance(p);
+        return ast_make_node(NODE_ERROR_MSG, t.line, t.col);
+    }
+
+    if (t.type == TOKEN_PARSE_JSON_PH || t.type == TOKEN_TO_JSON_PH) {
+        advance(p);
+        ASTNode *n = ast_make_node(
+            t.type == TOKEN_PARSE_JSON_PH ? NODE_PARSE_JSON : NODE_TO_JSON,
+            t.line, t.col);
+        n->as.json_convert.value_expr = parse_unary(p);
+        return n;
+    }
+
+    if (t.type == TOKEN_SEND_JSON_PH) {
+        advance(p);
+        ASTNode *node = ast_make_node(NODE_SEND_SOCKET, t.line, t.col);
+        node->as.send_socket.json_expr = parse_primary(p);
+        match(p, TOKEN_TO);
+        match(p, TOKEN_SOCKET_KW);
+        node->as.send_socket.path_expr = parse_primary(p);
+        return node;
+    }
+
+    if (t.type == TOKEN_POST_JSON_PH) {
+        advance(p);
+        ASTNode *node = ast_make_node(NODE_POST_HTTP, t.line, t.col);
+        node->as.post_http.json_expr = parse_primary(p);
+        match(p, TOKEN_TO);
+        node->as.post_http.url_expr = parse_primary(p);
+        return node;
+    }
+
+    if (t.type == TOKEN_FIELD) {
+        advance(p);
+        ASTNode *node = ast_make_node(NODE_JSON_FIELD, t.line, t.col);
+        node->as.json_field.key_expr  = parse_primary(p);
+        match(p, TOKEN_FROM);
+        match(p, TOKEN_JSON_KW);
+        node->as.json_field.json_expr = parse_primary(p);
+        return node;
+    }
+
     if (is_identifier_word(t.type) || is_postfix_op(t.type)) {
         char name[MAX_TOKEN_LEN] = {0};
         collect_name(p, name, MAX_TOKEN_LEN);
         ASTNode *node = ast_make_node(NODE_IDENTIFIER, t.line, t.col);
-        strncpy(node->as.identifier.name, name, MAX_TOKEN_LEN - 1);
+        AST_SET_STR(node->as.identifier.name, name);
         return node;
     }
 
-    /* Anything else — return null node, don't crash */
     return ast_make_node(NODE_NULL, t.line, t.col);
 }
 
-/* List literal: [1, 2, 3] */
 ASTNode *parse_list_literal(Parser *p) {
-    Token t = advance(p);   /* consume '[' */
+    Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_LIST, t.line, t.col);
     nodelist_init(&node->as.list.elements);
 
@@ -2042,19 +2220,11 @@ ASTNode *parse_list_literal(Parser *p) {
     return node;
 }
 
-/* ═════════════════════════════════════════════
-   HTML DOM ELEMENT PARSER (v1.7)
-   Handles:
-     div id "main" class "container"
-         ...
-     !
-     image src "test.png" class "logo"
-   ═════════════════════════════════════════════ */
 ASTNode *parse_html_element(Parser *p) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_HTML_ELEMENT, t.line, t.col);
-    
-    strncpy(node->as.html_element.tag, t.value, MAX_TOKEN_LEN - 1);
+
+    AST_SET_STR(node->as.html_element.tag, t.value);
     node->as.html_element.id_attr[0] = '\0';
     node->as.html_element.class_attr[0] = '\0';
     node->as.html_element.src_attr[0] = '\0';
@@ -2065,39 +2235,37 @@ ASTNode *parse_html_element(Parser *p) {
     node->as.html_element.text_content = NULL;
     nodelist_init(&node->as.html_element.children);
     node->as.html_element.is_self_closing = 0;
-    
+
     if (t.type == TOKEN_IMAGE_KW || t.type == TOKEN_INPUT_KW) {
         node->as.html_element.is_self_closing = 1;
     }
 
-    /* Parse optional attributes */
     while (!check(p, TOKEN_TERMINATOR) && !check(p, TOKEN_EOF) && !check(p, TOKEN_NEWLINE)) {
         if (match(p, TOKEN_ID_KW)) {
             Token str = expect(p, TOKEN_STRING, "Expected string after 'id'");
-            strncpy(node->as.html_element.id_attr, str.value, MAX_TOKEN_LEN - 1);
+            AST_SET_STR(node->as.html_element.id_attr, str.value);
         } else if (match(p, TOKEN_CLASS_KW)) {
             Token str = expect(p, TOKEN_STRING, "Expected string after 'class'");
-            strncpy(node->as.html_element.class_attr, str.value, MAX_TOKEN_LEN - 1);
+            AST_SET_STR(node->as.html_element.class_attr, str.value);
         } else if (match(p, TOKEN_SRC_KW)) {
             Token str = expect(p, TOKEN_STRING, "Expected string after 'src'");
-            strncpy(node->as.html_element.src_attr, str.value, MAX_TOKEN_LEN - 1);
+            AST_SET_STR(node->as.html_element.src_attr, str.value);
         } else if (match(p, TOKEN_TYPE_KW)) {
             Token str = expect(p, TOKEN_STRING, "Expected string after 'type'");
-            strncpy(node->as.html_element.type_attr, str.value, MAX_TOKEN_LEN - 1);
+            AST_SET_STR(node->as.html_element.type_attr, str.value);
         } else if (match(p, TOKEN_ONCLICK_KW)) {
             Token str = expect(p, TOKEN_STRING, "Expected string after 'onclick'");
-            strncpy(node->as.html_element.onclick_attr, str.value, MAX_TOKEN_LEN - 1);
+            AST_SET_STR(node->as.html_element.onclick_attr, str.value);
         } else if (match(p, TOKEN_PLACEHOLDER_KW)) {
             Token str = expect(p, TOKEN_STRING, "Expected string after 'placeholder'");
-            strncpy(node->as.html_element.placeholder_attr, str.value, MAX_TOKEN_LEN - 1);
+            AST_SET_STR(node->as.html_element.placeholder_attr, str.value);
         } else if (match(p, TOKEN_VALUE_KW)) {
             Token str = expect(p, TOKEN_STRING, "Expected string after 'value'");
-            strncpy(node->as.html_element.value_attr, str.value, MAX_TOKEN_LEN - 1);
+            AST_SET_STR(node->as.html_element.value_attr, str.value);
         } else if (check(p, TOKEN_STRING) || check(p, TOKEN_IDENTIFIER) || check(p, TOKEN_NUMBER)) {
-            /* Inner text content expressed as expression inline */
             node->as.html_element.text_content = parse_expression(p);
         } else {
-            break; /* unknown token, let loop or block parser handle */
+            break;
         }
     }
 
@@ -2105,25 +2273,14 @@ ASTNode *parse_html_element(Parser *p) {
         parse_block(p, &node->as.html_element.children);
     } else {
         skip_newlines(p);
-        match(p, TOKEN_TERMINATOR); /* optional terminator */
+        match(p, TOKEN_TERMINATOR);
     }
-    
+
     return node;
 }
 
-/* ═══════════════════════════════════════════
-   EPF v2.0 COMPONENT PARSERS
-   ═══════════════════════════════════════════ */
-
-/* use design system "name"
-     primary color "X"
-     secondary color "X"
-     background "X"
-     fonts headline "X" body "X"
-     icons "X"
-   ! */
 ASTNode *parse_use_design(Parser *p) {
-    Token t = advance(p); /* consume TOKEN_USE_DESIGN */
+    Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_USE_DESIGN, t.line, t.col);
     node->as.use_design.name[0] = '\0';
     node->as.use_design.primary[0] = '\0';
@@ -2134,38 +2291,37 @@ ASTNode *parse_use_design(Parser *p) {
     node->as.use_design.icon_set[0] = '\0';
 
     if (check(p, TOKEN_STRING))
-        strncpy(node->as.use_design.name, advance(p).value, MAX_TOKEN_LEN-1);
+        AST_SET_STR(node->as.use_design.name, advance(p).value);
 
     skip_newlines(p);
     while (!check(p, TOKEN_TERMINATOR) && !check(p, TOKEN_EOF)) {
         skip_newlines(p);
         if (check(p, TOKEN_TERMINATOR) || check(p, TOKEN_EOF)) break;
-        if (current(p).type == TOKEN_WITH_COLOR) { /* "color" */
+        if (current(p).type == TOKEN_WITH_COLOR) {
             advance(p);
             Token val = expect(p, TOKEN_STRING, "Expected color string");
-            /* figure out which color by checking previous word */
             if (strlen(node->as.use_design.primary) == 0)
-                strncpy(node->as.use_design.primary, val.value, MAX_TOKEN_LEN-1);
+                AST_SET_STR(node->as.use_design.primary, val.value);
             else
-                strncpy(node->as.use_design.secondary, val.value, MAX_TOKEN_LEN-1);
+                AST_SET_STR(node->as.use_design.secondary, val.value);
         } else if (current(p).type == TOKEN_BACKGROUND_KW) {
             advance(p);
             Token val = expect(p, TOKEN_STRING, "Expected background color");
-            strncpy(node->as.use_design.background, val.value, MAX_TOKEN_LEN-1);
+            AST_SET_STR(node->as.use_design.background, val.value);
         } else if (strcmp(current(p).value, "fonts") == 0 || strcmp(current(p).value, "headline") == 0) {
-            advance(p); /* "fonts" or "headline" */
-            match(p, TOKEN_HEADING_OUT); /* "headline" if already consumed */
+            advance(p);
+            match(p, TOKEN_HEADING_OUT);
             if (check(p, TOKEN_STRING))
-                strncpy(node->as.use_design.headline_font, advance(p).value, MAX_TOKEN_LEN-1);
-            match(p, TOKEN_MAKE_REPORT); /* skip "body" keyword if present */
+                AST_SET_STR(node->as.use_design.headline_font, advance(p).value);
+            match(p, TOKEN_MAKE_REPORT);
             if (check(p, TOKEN_STRING))
-                strncpy(node->as.use_design.body_font, advance(p).value, MAX_TOKEN_LEN-1);
+                AST_SET_STR(node->as.use_design.body_font, advance(p).value);
         } else if (current(p).type == TOKEN_ICONS_KW) {
             advance(p);
             if (check(p, TOKEN_STRING))
-                strncpy(node->as.use_design.icon_set, advance(p).value, MAX_TOKEN_LEN-1);
+                AST_SET_STR(node->as.use_design.icon_set, advance(p).value);
         } else {
-            advance(p); /* skip unknown modifiers */
+            advance(p);
         }
         skip_newlines(p);
     }
@@ -2173,10 +2329,6 @@ ASTNode *parse_use_design(Parser *p) {
     return node;
 }
 
-/* make navbar branded as "X" styled as "Y"
-     nav link "label" at "href"
-     action button "label" on click open modal "id"
-   ! */
 ASTNode *parse_make_navbar(Parser *p) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_MAKE_NAVBAR, t.line, t.col);
@@ -2186,52 +2338,46 @@ ASTNode *parse_make_navbar(Parser *p) {
 
     match(p, TOKEN_BRANDED); match(p, TOKEN_AS);
     if (check(p, TOKEN_STRING))
-        strncpy(node->as.make_navbar.brand, advance(p).value, MAX_TOKEN_LEN-1);
+        AST_SET_STR(node->as.make_navbar.brand, advance(p).value);
     match(p, TOKEN_STYLED); match(p, TOKEN_AS);
     if (check(p, TOKEN_STRING))
-        strncpy(node->as.make_navbar.style, advance(p).value, MAX_TOKEN_LEN-1);
+        AST_SET_STR(node->as.make_navbar.style, advance(p).value);
 
     parse_block(p, &node->as.make_navbar.children);
     return node;
 }
 
-/* nav link "label" at "href" */
 ASTNode *parse_nav_link(Parser *p) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_NAV_LINK, t.line, t.col);
     node->as.nav_link.label[0] = '\0';
     node->as.nav_link.href[0] = '\0';
     if (check(p, TOKEN_STRING))
-        strncpy(node->as.nav_link.label, advance(p).value, MAX_TOKEN_LEN-1);
+        AST_SET_STR(node->as.nav_link.label, advance(p).value);
     match(p, TOKEN_AT_KW);
     if (check(p, TOKEN_STRING))
-        strncpy(node->as.nav_link.href, advance(p).value, MAX_TOKEN_LEN-1);
+        AST_SET_STR(node->as.nav_link.href, advance(p).value);
     return node;
 }
 
-/* action button "label" on click open modal "id" */
 ASTNode *parse_action_btn(Parser *p) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_ACTION_BTN, t.line, t.col);
     node->as.action_btn.label[0] = '\0';
     node->as.action_btn.modal_id[0] = '\0';
     if (check(p, TOKEN_STRING))
-        strncpy(node->as.action_btn.label, advance(p).value, MAX_TOKEN_LEN-1);
+        AST_SET_STR(node->as.action_btn.label, advance(p).value);
     if (check(p, TOKEN_ON_CLICK)) {
         advance(p);
         if (check(p, TOKEN_OPEN_MODAL)) {
             advance(p);
             if (check(p, TOKEN_STRING))
-                strncpy(node->as.action_btn.modal_id, advance(p).value, MAX_TOKEN_LEN-1);
+                AST_SET_STR(node->as.action_btn.modal_id, advance(p).value);
         }
     }
     return node;
 }
 
-/* make hero titled "X" accented "Y" subtitled "Z"
-     background image "url" dimmed to N
-     overlay card "title" ... !
-   ! */
 ASTNode *parse_make_hero(Parser *p) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_MAKE_HERO, t.line, t.col);
@@ -2244,16 +2390,16 @@ ASTNode *parse_make_hero(Parser *p) {
 
     match(p, TOKEN_TITLED);
     if (check(p, TOKEN_STRING))
-        strncpy(node->as.make_hero.title, advance(p).value, MAX_TOKEN_LEN-1);
+        AST_SET_STR(node->as.make_hero.title, advance(p).value);
     if (check(p, TOKEN_ACCENTED)) {
         advance(p);
         if (check(p, TOKEN_STRING))
-            strncpy(node->as.make_hero.accented, advance(p).value, MAX_TOKEN_LEN-1);
+            AST_SET_STR(node->as.make_hero.accented, advance(p).value);
     }
     if (check(p, TOKEN_SUBHEADING)) {
         advance(p);
         if (check(p, TOKEN_STRING))
-            strncpy(node->as.make_hero.subtitle, advance(p).value, MAX_TOKEN_LEN-1);
+            AST_SET_STR(node->as.make_hero.subtitle, advance(p).value);
     }
 
     skip_newlines(p);
@@ -2261,10 +2407,10 @@ ASTNode *parse_make_hero(Parser *p) {
         skip_newlines(p);
         if (check(p, TOKEN_TERMINATOR) || check(p, TOKEN_EOF)) break;
         if (check(p, TOKEN_BACKGROUND_KW)) {
-            advance(p); /* "background" */
-            advance(p); /* "image" */
+            advance(p);
+            advance(p);
             if (check(p, TOKEN_STRING))
-                strncpy(node->as.make_hero.bg_image, advance(p).value, MAX_TOKEN_LEN-1);
+                AST_SET_STR(node->as.make_hero.bg_image, advance(p).value);
             if (check(p, TOKEN_DIMMED)) {
                 advance(p); match(p, TOKEN_TO);
                 if (check(p, TOKEN_NUMBER))
@@ -2281,45 +2427,37 @@ ASTNode *parse_make_hero(Parser *p) {
     return node;
 }
 
-/* overlay card "title" ... ! */
 ASTNode *parse_overlay_card(Parser *p) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_OVERLAY_CARD, t.line, t.col);
     node->as.overlay_card.title[0] = '\0';
     nodelist_init(&node->as.overlay_card.children);
     if (check(p, TOKEN_STRING))
-        strncpy(node->as.overlay_card.title, advance(p).value, MAX_TOKEN_LEN-1);
+        AST_SET_STR(node->as.overlay_card.title, advance(p).value);
     parse_block(p, &node->as.overlay_card.children);
     return node;
 }
 
-/* guest picker default N */
 ASTNode *parse_guest_picker(Parser *p) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_GUEST_PICKER, t.line, t.col);
     node->as.guest_picker.default_count = 2;
-    /* consume optional "default" */
     if (strcmp(current(p).value, "default") == 0) advance(p);
     if (check(p, TOKEN_NUMBER))
         node->as.guest_picker.default_count = (int)atof(advance(p).value);
     return node;
 }
 
-/* date picker label "X" */
 ASTNode *parse_date_picker(Parser *p) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_DATE_PICKER, t.line, t.col);
     node->as.date_picker.label[0] = '\0';
     match(p, TOKEN_LABEL_OUT);
     if (check(p, TOKEN_STRING))
-        strncpy(node->as.date_picker.label, advance(p).value, MAX_TOKEN_LEN-1);
+        AST_SET_STR(node->as.date_picker.label, advance(p).value);
     return node;
 }
 
-/* make content section id "X"
-     left column ... !
-     right column ... !
-   ! */
 ASTNode *parse_content_section(Parser *p) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_CONTENT_SECTION, t.line, t.col);
@@ -2329,7 +2467,7 @@ ASTNode *parse_content_section(Parser *p) {
 
     match(p, TOKEN_ID_KW);
     if (check(p, TOKEN_STRING))
-        strncpy(node->as.content_section.id, advance(p).value, MAX_TOKEN_LEN-1);
+        AST_SET_STR(node->as.content_section.id, advance(p).value);
 
     skip_newlines(p);
     while (!check(p, TOKEN_TERMINATOR) && !check(p, TOKEN_EOF)) {
@@ -2347,7 +2485,6 @@ ASTNode *parse_content_section(Parser *p) {
     return node;
 }
 
-/* left column / right column ... ! */
 ASTNode *parse_column(Parser *p, int is_right) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_COLUMN, t.line, t.col);
@@ -2357,20 +2494,15 @@ ASTNode *parse_column(Parser *p, int is_right) {
     return node;
 }
 
-/* eyebrow "text" */
 ASTNode *parse_eyebrow(Parser *p) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_EYEBROW, t.line, t.col);
     node->as.eyebrow.text[0] = '\0';
     if (check(p, TOKEN_STRING))
-        strncpy(node->as.eyebrow.text, advance(p).value, MAX_TOKEN_LEN-1);
+        AST_SET_STR(node->as.eyebrow.text, advance(p).value);
     return node;
 }
 
-/* item list
-     entry "label" numbered N detail "x" [offset]
-     ...
-   ! */
 ASTNode *parse_item_list(Parser *p) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_ITEM_LIST, t.line, t.col);
@@ -2379,7 +2511,6 @@ ASTNode *parse_item_list(Parser *p) {
     return node;
 }
 
-/* entry "label" numbered N detail "desc" [offset] */
 ASTNode *parse_list_entry(Parser *p) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_LIST_ENTRY, t.line, t.col);
@@ -2389,7 +2520,7 @@ ASTNode *parse_list_entry(Parser *p) {
     node->as.list_entry.offset = 0;
 
     if (check(p, TOKEN_STRING))
-        strncpy(node->as.list_entry.label, advance(p).value, MAX_TOKEN_LEN-1);
+        AST_SET_STR(node->as.list_entry.label, advance(p).value);
     if (check(p, TOKEN_NUMBERED)) {
         advance(p);
         if (check(p, TOKEN_NUMBER))
@@ -2398,14 +2529,13 @@ ASTNode *parse_list_entry(Parser *p) {
     if (check(p, TOKEN_DETAIL_KW)) {
         advance(p);
         if (check(p, TOKEN_STRING))
-            strncpy(node->as.list_entry.detail, advance(p).value, MAX_TOKEN_LEN-1);
+            AST_SET_STR(node->as.list_entry.detail, advance(p).value);
     }
     if (check(p, TOKEN_OFFSET))
         { advance(p); node->as.list_entry.offset = 1; }
     return node;
 }
 
-/* feature image "src" aspect "4/5" hover "reveal color" */
 ASTNode *parse_feature_image(Parser *p) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_FEATURE_IMAGE, t.line, t.col);
@@ -2414,39 +2544,33 @@ ASTNode *parse_feature_image(Parser *p) {
     node->as.feature_image.hover_mode[0] = '\0';
 
     if (check(p, TOKEN_STRING))
-        strncpy(node->as.feature_image.src, advance(p).value, MAX_TOKEN_LEN-1);
+        AST_SET_STR(node->as.feature_image.src, advance(p).value);
     if (check(p, TOKEN_ASPECT)) {
         advance(p);
         if (check(p, TOKEN_STRING))
-            strncpy(node->as.feature_image.aspect, advance(p).value, MAX_TOKEN_LEN-1);
+            AST_SET_STR(node->as.feature_image.aspect, advance(p).value);
     }
-    /* consume "hover" keyword then string */
     if (strcmp(current(p).value, "hover") == 0) {
         advance(p);
         if (check(p, TOKEN_STRING))
-            strncpy(node->as.feature_image.hover_mode, advance(p).value, MAX_TOKEN_LEN-1);
+            AST_SET_STR(node->as.feature_image.hover_mode, advance(p).value);
     }
     return node;
 }
 
-/* price badge "$285" label "per guest" */
 ASTNode *parse_price_badge(Parser *p) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_PRICE_BADGE, t.line, t.col);
     node->as.price_badge.price[0] = '\0';
     node->as.price_badge.label[0] = '\0';
     if (check(p, TOKEN_STRING))
-        strncpy(node->as.price_badge.price, advance(p).value, MAX_TOKEN_LEN-1);
+        AST_SET_STR(node->as.price_badge.price, advance(p).value);
     match(p, TOKEN_LABEL_OUT);
     if (check(p, TOKEN_STRING))
-        strncpy(node->as.price_badge.label, advance(p).value, MAX_TOKEN_LEN-1);
+        AST_SET_STR(node->as.price_badge.label, advance(p).value);
     return node;
 }
 
-/* make gallery titled "X" subtitled "Y" columns N
-     image "url" [offset top N]
-     ...
-   ! */
 ASTNode *parse_make_gallery(Parser *p) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_MAKE_GALLERY, t.line, t.col);
@@ -2457,11 +2581,11 @@ ASTNode *parse_make_gallery(Parser *p) {
 
     match(p, TOKEN_TITLED);
     if (check(p, TOKEN_STRING))
-        strncpy(node->as.make_gallery.title, advance(p).value, MAX_TOKEN_LEN-1);
+        AST_SET_STR(node->as.make_gallery.title, advance(p).value);
     if (check(p, TOKEN_SUBHEADING)) {
         advance(p);
         if (check(p, TOKEN_STRING))
-            strncpy(node->as.make_gallery.subtitle, advance(p).value, MAX_TOKEN_LEN-1);
+            AST_SET_STR(node->as.make_gallery.subtitle, advance(p).value);
     }
     if (check(p, TOKEN_COLUMNS)) {
         advance(p);
@@ -2472,17 +2596,15 @@ ASTNode *parse_make_gallery(Parser *p) {
     return node;
 }
 
-/* image "url" [offset top N] — used inside gallery blocks */
 ASTNode *parse_gallery_image(Parser *p) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_GALLERY_IMAGE, t.line, t.col);
     node->as.gallery_image.src[0] = '\0';
     node->as.gallery_image.offset_top = 0;
     if (check(p, TOKEN_STRING))
-        strncpy(node->as.gallery_image.src, advance(p).value, MAX_TOKEN_LEN-1);
+        AST_SET_STR(node->as.gallery_image.src, advance(p).value);
     if (check(p, TOKEN_OFFSET)) {
-        advance(p); /* "offset" */
-        /* consume optional "top" */
+        advance(p);
         if (strcmp(current(p).value, "top") == 0) advance(p);
         if (check(p, TOKEN_NUMBER))
             node->as.gallery_image.offset_top = (int)atof(advance(p).value);
@@ -2490,74 +2612,153 @@ ASTNode *parse_gallery_image(Parser *p) {
     return node;
 }
 
-/* make form "title" eyebrow "subtitle"
-     field text "label" placeholder "x"
-     field email "label" placeholder "x"
-     field textarea "label" placeholder "x"
-     submit button "label" on click open modal "id"
-   ! */
+static void parse_action_after(Parser *p, ASTNode *node) {
+    advance(p);
+    char words[256] = {0};
+    while (!check(p, TOKEN_NEWLINE) && !check(p, TOKEN_TERMINATOR) &&
+           !check(p, TOKEN_EOF)) {
+        Token w = advance(p);
+        if (w.type == TOKEN_STRING) {
+            AST_SET_STR(node->as.action_form.go_to, w.value);
+            continue;
+        }
+        strncat(words, " ", sizeof words - strlen(words) - 1);
+        strncat(words, w.value, sizeof words - strlen(words) - 1);
+    }
+    if (strcmp(words, " show the reply") == 0 || strcmp(words, " show reply") == 0)
+        node->as.action_form.after = ACTION_AFTER_SHOW;
+    else if (strcmp(words, " refresh the page") == 0 || strcmp(words, " refresh page") == 0)
+        node->as.action_form.after = ACTION_AFTER_REFRESH;
+    else if (strcmp(words, " go to") == 0 && node->as.action_form.go_to[0])
+        node->as.action_form.after = ACTION_AFTER_GO;
+    else
+        parser_error(p, "after an action write one of: then show the reply / "
+                        "then refresh the page / then go to \"page.html\"");
+}
+
+static ASTNode *parse_action_form(Parser *p, Token t, const char *label) {
+    ASTNode *node = ast_make_node(NODE_ACTION_FORM, t.line, t.col);
+    nodelist_init(&node->as.action_form.inputs);
+    AST_SET_STR(node->as.action_form.label, label);
+    advance(p);
+    char name[MAX_TOKEN_LEN] = {0};
+    collect_name(p, name, MAX_TOKEN_LEN);
+    if (!name[0]) { parser_error(p, "expected an activity name after 'for'"); return node; }
+    AST_SET_STR(node->as.action_form.activity, name);
+    if (check(p, TOKEN_THEN)) parse_action_after(p, node);
+
+    int open_line = t.line;
+    skip_newlines(p);
+    while (!check(p, TOKEN_TERMINATOR) && !check(p, TOKEN_EOF)) {
+        if (check(p, TOKEN_INPUT_KW)) {
+            Token it = advance(p);
+            ASTNode *in = ast_make_node(NODE_ACTION_INPUT, it.line, it.col);
+            if (!check(p, TOKEN_STRING)) {
+                parser_error(p, "write the parameter it fills: input \"qty\" labeled \"Quantity\"");
+                ast_free(in);
+                return node;
+            }
+            AST_SET_STR(in->as.action_input.name, advance(p).value);
+            AST_SET_STR(in->as.action_input.label, in->as.action_input.name);
+            if (match(p, TOKEN_LABELED) && check(p, TOKEN_STRING))
+                AST_SET_STR(in->as.action_input.label, advance(p).value);
+            nodelist_push(&node->as.action_form.inputs, in);
+        } else if (check(p, TOKEN_THEN)) {
+            parse_action_after(p, node);
+        } else {
+            parser_error(p, "a form holds lines like input \"qty\" labeled \"Quantity\" "
+                            "and one 'then …' line");
+            return node;
+        }
+        if (p->panic_mode) return node;
+        skip_newlines(p);
+    }
+    close_block(p, open_line);
+    node->end_line = p->tokens[p->current > 0 ? p->current - 1 : 0].line;
+    return node;
+}
+
+ASTNode *parse_make_button(Parser *p) {
+    Token t = advance(p);
+    ASTNode *node = ast_make_node(NODE_ACTION_BUTTON, t.line, t.col);
+    nodelist_init(&node->as.action_form.inputs);
+    if (!check(p, TOKEN_STRING)) {
+        parser_error(p, "write the button text: make button \"Refresh\" for revenue");
+        return node;
+    }
+    AST_SET_STR(node->as.action_form.label, advance(p).value);
+    if (!match(p, TOKEN_FOR)) {
+        parser_error(p, "say which activity it calls: make button \"Refresh\" for revenue");
+        return node;
+    }
+    char name[MAX_TOKEN_LEN] = {0};
+    collect_name(p, name, MAX_TOKEN_LEN);
+    if (!name[0]) { parser_error(p, "expected an activity name after 'for'"); return node; }
+    AST_SET_STR(node->as.action_form.activity, name);
+    if (check(p, TOKEN_THEN)) parse_action_after(p, node);
+    return node;
+}
+
 ASTNode *parse_make_form(Parser *p) {
     Token t = advance(p);
+    if (check(p, TOKEN_FOR))
+        return parse_action_form(p, t, "Send");
+    if (check(p, TOKEN_STRING) && peek_at(p, 1).type == TOKEN_FOR) {
+        Token lbl = advance(p);
+        return parse_action_form(p, t, lbl.value);
+    }
     ASTNode *node = ast_make_node(NODE_MAKE_FORM, t.line, t.col);
     node->as.make_form.title[0] = '\0';
     node->as.make_form.eyebrow[0] = '\0';
     nodelist_init(&node->as.make_form.children);
 
     if (check(p, TOKEN_STRING))
-        strncpy(node->as.make_form.title, advance(p).value, MAX_TOKEN_LEN-1);
+        AST_SET_STR(node->as.make_form.title, advance(p).value);
     if (check(p, TOKEN_EYEBROW)) {
         advance(p);
         if (check(p, TOKEN_STRING))
-            strncpy(node->as.make_form.eyebrow, advance(p).value, MAX_TOKEN_LEN-1);
+            AST_SET_STR(node->as.make_form.eyebrow, advance(p).value);
     }
     parse_block(p, &node->as.make_form.children);
     return node;
 }
 
-/* field text "Full Name" placeholder "Mr. Julian Thorne" */
 ASTNode *parse_form_field(Parser *p) {
-    Token t = advance(p); /* "field" */
+    Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_FORM_FIELD, t.line, t.col);
     node->as.form_field.field_type[0] = '\0';
     node->as.form_field.field_label[0] = '\0';
     node->as.form_field.placeholder[0] = '\0';
-    /* next token is the type: text, email, textarea */
     if (!check(p, TOKEN_EOF) && !check(p, TOKEN_NEWLINE))
-        strncpy(node->as.form_field.field_type, advance(p).value, MAX_TOKEN_LEN-1);
+        AST_SET_STR(node->as.form_field.field_type, advance(p).value);
     if (check(p, TOKEN_STRING))
-        strncpy(node->as.form_field.field_label, advance(p).value, MAX_TOKEN_LEN-1);
+        AST_SET_STR(node->as.form_field.field_label, advance(p).value);
     if (check(p, TOKEN_PLACEHOLDER_KW) || check(p, TOKEN_PLACEHOLDER_EPF)) {
         advance(p);
         if (check(p, TOKEN_STRING))
-            strncpy(node->as.form_field.placeholder, advance(p).value, MAX_TOKEN_LEN-1);
+            AST_SET_STR(node->as.form_field.placeholder, advance(p).value);
     }
     return node;
 }
 
-/* submit button "label" on click open modal "id" */
 ASTNode *parse_submit_btn(Parser *p) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_SUBMIT_BTN, t.line, t.col);
     node->as.submit_btn.label[0] = '\0';
     node->as.submit_btn.modal_id[0] = '\0';
     if (check(p, TOKEN_STRING))
-        strncpy(node->as.submit_btn.label, advance(p).value, MAX_TOKEN_LEN-1);
+        AST_SET_STR(node->as.submit_btn.label, advance(p).value);
     if (check(p, TOKEN_ON_CLICK)) {
         advance(p);
         if (check(p, TOKEN_OPEN_MODAL)) {
             advance(p);
             if (check(p, TOKEN_STRING))
-                strncpy(node->as.submit_btn.modal_id, advance(p).value, MAX_TOKEN_LEN-1);
+                AST_SET_STR(node->as.submit_btn.modal_id, advance(p).value);
         }
     }
     return node;
 }
 
-/* make modal id "booking" icon "check_circle" color "primary"
-     heading "Sanctuary Secured"
-     paragraph "Your reservation..."
-     dismiss button "Return to Oasis"
-   ! */
 ASTNode *parse_make_modal(Parser *p) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_MAKE_MODAL, t.line, t.col);
@@ -2570,16 +2771,16 @@ ASTNode *parse_make_modal(Parser *p) {
 
     match(p, TOKEN_ID_KW);
     if (check(p, TOKEN_STRING))
-        strncpy(node->as.make_modal.modal_id, advance(p).value, MAX_TOKEN_LEN-1);
+        AST_SET_STR(node->as.make_modal.modal_id, advance(p).value);
     if (strcmp(current(p).value, "icon") == 0) {
         advance(p);
         if (check(p, TOKEN_STRING))
-            strncpy(node->as.make_modal.icon, advance(p).value, MAX_TOKEN_LEN-1);
+            AST_SET_STR(node->as.make_modal.icon, advance(p).value);
     }
     if (check(p, TOKEN_WITH_COLOR)) {
         advance(p);
         if (check(p, TOKEN_STRING))
-            strncpy(node->as.make_modal.color, advance(p).value, MAX_TOKEN_LEN-1);
+            AST_SET_STR(node->as.make_modal.color, advance(p).value);
     }
 
     skip_newlines(p);
@@ -2589,15 +2790,15 @@ ASTNode *parse_make_modal(Parser *p) {
         if (check(p, TOKEN_HEADING_OUT)) {
             advance(p);
             if (check(p, TOKEN_STRING))
-                strncpy(node->as.make_modal.heading, advance(p).value, MAX_TOKEN_LEN-1);
+                AST_SET_STR(node->as.make_modal.heading, advance(p).value);
         } else if (check(p, TOKEN_PARAGRAPH)) {
             advance(p);
             if (check(p, TOKEN_STRING))
-                strncpy(node->as.make_modal.body_text, advance(p).value, MAX_TOKEN_LEN-1);
+                AST_SET_STR(node->as.make_modal.body_text, advance(p).value);
         } else if (check(p, TOKEN_DISMISS_BTN)) {
             advance(p);
             if (check(p, TOKEN_STRING))
-                strncpy(node->as.make_modal.dismiss_label, advance(p).value, MAX_TOKEN_LEN-1);
+                AST_SET_STR(node->as.make_modal.dismiss_label, advance(p).value);
         } else {
             advance(p);
         }
@@ -2607,22 +2808,15 @@ ASTNode *parse_make_modal(Parser *p) {
     return node;
 }
 
-/* dismiss button "label" */
 ASTNode *parse_dismiss_btn(Parser *p) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_DISMISS_BTN, t.line, t.col);
     node->as.make_modal.dismiss_label[0] = '\0';
     if (check(p, TOKEN_STRING))
-        strncpy(node->as.make_modal.dismiss_label, advance(p).value, MAX_TOKEN_LEN-1);
+        AST_SET_STR(node->as.make_modal.dismiss_label, advance(p).value);
     return node;
 }
 
-/* make footer branded as "Green Desert"
-     tagline "..."
-     contact heading "Visit Us"
-     address "2424 Obsidian..."
-     copyright "2024 Green Desert"
-   ! */
 ASTNode *parse_make_footer(Parser *p) {
     Token t = advance(p);
     ASTNode *node = ast_make_node(NODE_MAKE_FOOTER, t.line, t.col);
@@ -2634,7 +2828,7 @@ ASTNode *parse_make_footer(Parser *p) {
 
     match(p, TOKEN_BRANDED); match(p, TOKEN_AS);
     if (check(p, TOKEN_STRING))
-        strncpy(node->as.make_footer.brand, advance(p).value, MAX_TOKEN_LEN-1);
+        AST_SET_STR(node->as.make_footer.brand, advance(p).value);
 
     skip_newlines(p);
     while (!check(p, TOKEN_TERMINATOR) && !check(p, TOKEN_EOF)) {
@@ -2643,20 +2837,20 @@ ASTNode *parse_make_footer(Parser *p) {
         if (check(p, TOKEN_TAGLINE)) {
             advance(p);
             if (check(p, TOKEN_STRING))
-                strncpy(node->as.make_footer.tagline, advance(p).value, MAX_TOKEN_LEN-1);
+                AST_SET_STR(node->as.make_footer.tagline, advance(p).value);
         } else if (strcmp(current(p).value, "contact") == 0) {
             advance(p);
             match(p, TOKEN_HEADING_OUT);
             if (check(p, TOKEN_STRING))
-                strncpy(node->as.make_footer.contact_heading, advance(p).value, MAX_TOKEN_LEN-1);
+                AST_SET_STR(node->as.make_footer.contact_heading, advance(p).value);
         } else if (check(p, TOKEN_ADDRESS_KW)) {
             advance(p);
             if (check(p, TOKEN_STRING))
-                strncpy(node->as.make_footer.address, advance(p).value, MAX_TOKEN_LEN-1);
+                AST_SET_STR(node->as.make_footer.address, advance(p).value);
         } else if (check(p, TOKEN_COPYRIGHT)) {
             advance(p);
             if (check(p, TOKEN_STRING))
-                strncpy(node->as.make_footer.copyright, advance(p).value, MAX_TOKEN_LEN-1);
+                AST_SET_STR(node->as.make_footer.copyright, advance(p).value);
         } else {
             advance(p);
         }
@@ -2666,7 +2860,3 @@ ASTNode *parse_make_footer(Parser *p) {
     return node;
 }
 
-/* parse_field — dispatched when TOKEN_FIELD is seen inside a form block */
-/* Note: parse_statement default case won't hit TOKEN_FIELD, so the form block
-   parser calls parse_form_field directly when it encounters it. Added here for
-   completeness so the linker resolves the symbol. */

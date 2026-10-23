@@ -1,46 +1,81 @@
 #ifndef DESCRIBE_H
 #define DESCRIBE_H
 
-/* ─────────────────────────────────────────────
-   EPL Semantic Index — describe.h  (v1.5)
-   Extracts describe blocks → .EPD file
-   ───────────────────────────────────────────── */
-
 #include "ast.h"
 
-/* Entry types in the .EPD file */
 typedef enum {
-    EPD_PROGRAM,     /* top-level program description          */
-    EPD_ACTIVITY,    /* to name ... ! with describe above it   */
-    EPD_BLOCK,       /* describe on a non-activity block       */
-    EPD_DATA,        /* set X as ... with describe above it    */
-    EPD_PAGE,        /* make page in .EPF                      */
-    EPD_SECTION,     /* section in .EPF                        */
+    EPD_PROGRAM,
+    EPD_ACTIVITY,
+    EPD_BLOCK,
+    EPD_DATA,
+    EPD_PAGE,
+    EPD_SECTION,
     EPD_UNKNOWN
 } EPDEntryType;
 
-/* One semantic entry */
 typedef struct {
     EPDEntryType type;
     int          line_start;
     int          line_end;
-    char         name[256];        /* activity name / variable name / ""  */
-    char         description[512]; /* the describe text                   */
-    char         params[256];      /* "x, y" for activities               */
-    char         data_type[64];    /* "list", "number", "graph", etc.     */
+    char         name[256];
+    char         description[512];
+    char         params[256];
+    char         data_type[64];
 } EPDEntry;
 
-/* Index — collection of entries */
 typedef struct {
     EPDEntry *entries;
     int       count;
     int       capacity;
 } EPDIndex;
 
-/* Main API */
 EPDIndex *epd_build(ASTNode *program, const char *source_file);
 void      epd_write(EPDIndex *idx, const char *source_file,
                     const char *out_file);
 void      epd_free(EPDIndex *idx);
 
-#endif /* DESCRIBE_H */
+typedef struct {
+    char      path[512];
+    int       lines;
+    EPDIndex *index;
+} EPDModule;
+
+typedef struct {
+    char module[512];
+    char caller[128];
+    char callee[128];
+    int  line;
+    char via;
+} CallEdge;
+
+typedef struct {
+    char module[512];
+    char name[128];
+} ActivityDef;
+
+typedef struct {
+    char from[512];
+    char to[512];
+} ImportEdge;
+
+typedef struct {
+    CallEdge    *edges;
+    int          count;
+    int          capacity;
+    ActivityDef *defs;
+    int          def_count;
+    int          def_capacity;
+    ImportEdge  *imports;
+    int          import_count;
+    int          import_capacity;
+} CallGraph;
+
+void callgraph_collect(ASTNode *program, const char *module_path, CallGraph *cg);
+void callgraph_add_import(CallGraph *cg, const char *from, const char *to);
+void callgraph_free(CallGraph *cg);
+
+void epd_write_workspace(const char *out_file, const char *root,
+                         EPDModule *modules, int module_count,
+                         CallGraph *cg);
+
+#endif

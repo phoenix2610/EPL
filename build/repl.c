@@ -13,22 +13,7 @@ unsigned int __attribute__((stdcall)) SetConsoleOutputCP(unsigned int wCodePageI
 #include "ast.h"
 #include "interpreter.h"
 
-/* ─────────────────────────────────────────────
-   EPL REPL — repl.c
-   Interactive Read-Eval-Print Loop.
-   Maintains persistent state across inputs so
-   variables and activities survive each line.
-   ───────────────────────────────────────────── */
-
-
-/* ═════════════════════════════════════════════
-   BLOCK DETECTION
-   Figures out if the current input opens a
-   block that needs more lines.
-   Counts block openers vs ! terminators.
-   ═════════════════════════════════════════════ */
 static int count_open_blocks(const char *source) {
-    /* Keywords that open a block needing ! to close */
     static const char *openers[] = {
         "then", "while", "repeat", "indefinitely",
         "attempt", NULL
@@ -39,20 +24,17 @@ static int count_open_blocks(const char *source) {
     const char *p = source;
 
     while (*p) {
-        /* Skip strings */
         if (*p == '"') {
             p++;
             while (*p && *p != '"') p++;
             if (*p) p++;
             continue;
         }
-        /* Skip comments */
         if (*p == '#') {
             while (*p && *p != '\n') p++;
             continue;
         }
 
-        /* Read a word */
         if ((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z')) {
             int i = 0;
             while ((*p >= 'a' && *p <= 'z') ||
@@ -64,28 +46,21 @@ static int count_open_blocks(const char *source) {
             }
             word[i] = '\0';
 
-            /* Check openers */
             for (int j = 0; openers[j]; j++) {
                 if (strcmp(word, openers[j]) == 0) {
                     depth++;
                     break;
                 }
             }
-            /* Activity definition with comma = inline, no block */
             continue;
         }
 
-        /* ! closes a block */
         if (*p == '!') { depth--; p++; continue; }
         p++;
     }
     return depth;
 }
 
-
-/* ═════════════════════════════════════════════
-   REPL BANNER
-   ═════════════════════════════════════════════ */
 void repl_banner(void) {
 #ifdef _WIN32
     SetConsoleOutputCP(65001);
@@ -113,10 +88,6 @@ void repl_banner(void) {
     printf("\n");
 }
 
-
-/* ═════════════════════════════════════════════
-   REPL INIT / FREE
-   ═════════════════════════════════════════════ */
 void repl_init(Repl *repl) {
     interpreter_init(&repl->interp, "REPL");
     repl->running     = 1;
@@ -127,15 +98,6 @@ void repl_free(Repl *repl) {
     interpreter_free(&repl->interp);
 }
 
-
-/* ═════════════════════════════════════════════
-   REPL READ
-   Reads one line. If that line opens a block
-   (ends with 'then', 'while', etc.) keeps
-   reading with continuation prompt until
-   the block is closed with !
-   Returns 1 if input was read, 0 on EOF.
-   ═════════════════════════════════════════════ */
 int repl_read(Repl *repl, char *buf, int maxlen) {
     (void)repl;
     buf[0] = '\0';
@@ -143,41 +105,29 @@ int repl_read(Repl *repl, char *buf, int maxlen) {
     int open_blocks = 0;
 
     while (1) {
-        /* Print appropriate prompt */
         if (total_len == 0)
             printf("%s", REPL_PROMPT);
         else
             printf("%s", REPL_CONTINUE);
         fflush(stdout);
 
-        /* Read a line */
         char line[MAX_INPUT_LEN];
-        if (!fgets(line, MAX_INPUT_LEN, stdin)) return 0;   /* EOF / Ctrl+D */
+        if (!fgets(line, MAX_INPUT_LEN, stdin)) return 0;
 
-        /* Append to buffer */
         int line_len = strlen(line);
         if (total_len + line_len >= maxlen - 1) break;
         strcat(buf, line);
         total_len += line_len;
 
-        /* Recount open blocks across full buffer */
         open_blocks = count_open_blocks(buf);
 
-        /* If all blocks are closed, we're done */
         if (open_blocks <= 0) break;
     }
 
     return 1;
 }
 
-
-/* ═════════════════════════════════════════════
-   SPECIAL COMMAND HANDLER
-   Returns 1 if input was a command (handled),
-   0 if it's regular EPL code.
-   ═════════════════════════════════════════════ */
 int repl_handle_command(Repl *repl, const char *input) {
-    /* Trim leading whitespace */
     while (*input == ' ' || *input == '\t') input++;
 
     if (strcmp(input, ":exit\n") == 0 ||
@@ -212,7 +162,8 @@ int repl_handle_command(Repl *repl, const char *input) {
         if (env->count == 0) {
             printf("  (no variables set)\n");
         } else {
-            for (int i = 0; i < env->count; i++) {
+            for (int i = 0; i < env->capacity; i++) {
+                if (!env->names[i]) continue;
                 char *val_str = val_to_string(env->values[i]);
                 printf("  %-20s = %s\n", env->names[i], val_str);
                 free(val_str);
@@ -225,23 +176,15 @@ int repl_handle_command(Repl *repl, const char *input) {
     return 0;
 }
 
-
-/* ═════════════════════════════════════════════
-   REPL EVAL
-   Tokenizes, parses, and executes a source
-   string inside the persistent interpreter.
-   ═════════════════════════════════════════════ */
 void repl_eval(Repl *repl, const char *source) {
     if (!source || source[0] == '\0') return;
 
-    /* ── Tokenize ── */
     Lexer lexer;
-    lexer_init(&lexer, source);
+    lexer_init(&lexer, source, LEX_EP);
     int    count  = 0;
     Token *tokens = lexer_tokenize_all(&lexer, &count);
     if (!tokens) return;
 
-    /* ── Parse ── */
     Parser parser;
     parser_init(&parser, tokens, count);
     ASTNode *ast = parser_parse(&parser);
@@ -253,17 +196,14 @@ void repl_eval(Repl *repl, const char *source) {
         return;
     }
 
-    /* ── Execute — reuse persistent global env ── */
     repl->interp.signal.type  = SIG_NONE;
     repl->interp.signal.value = NULL;
     repl->interp.had_error    = 0;
 
-    /* Run statements directly in global env */
     exec_block(&repl->interp,
                &ast->as.program.body,
                repl->interp.global);
 
-    /* If a bare expression produced a return value, show it */
     if (repl->interp.signal.type == SIG_RETURN &&
         repl->interp.signal.value) {
         char *s = val_to_string(repl->interp.signal.value);
@@ -278,10 +218,6 @@ void repl_eval(Repl *repl, const char *source) {
     ast_free(ast);
 }
 
-
-/* ═════════════════════════════════════════════
-   REPL START — MAIN LOOP
-   ═════════════════════════════════════════════ */
 void repl_start(void) {
     Repl repl;
     repl_init(&repl);
@@ -290,20 +226,16 @@ void repl_start(void) {
     char input[MAX_INPUT_LEN * MAX_LINES];
 
     while (repl.running) {
-        /* Read */
         if (!repl_read(&repl, input, sizeof(input))) {
-            /* EOF — Ctrl+D */
             printf("\n  EPL out.\n\n");
             break;
         }
 
-        /* Skip empty input */
         char *trimmed = input;
         while (*trimmed == ' ' || *trimmed == '\t' ||
                *trimmed == '\n' || *trimmed == '\r') trimmed++;
         if (*trimmed == '\0') continue;
 
-        /* Handle special commands */
         if (trimmed[0] == ':') {
             repl_handle_command(&repl, trimmed);
             continue;
@@ -311,7 +243,6 @@ void repl_start(void) {
 
         repl.line_number++;
 
-        /* Eval */
         repl_eval(&repl, input);
     }
 

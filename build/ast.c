@@ -3,15 +3,6 @@
 #include <string.h>
 #include "ast.h"
 
-/* ─────────────────────────────────────────────
-   EPL Parser — ast.c
-   Node allocation, printing, and cleanup.
-   ───────────────────────────────────────────── */
-
-
-/* ═════════════════════════════════════════════
-   NODE LIST
-   ═════════════════════════════════════════════ */
 void nodelist_init(NodeList *list) {
     list->items    = NULL;
     list->count    = 0;
@@ -35,27 +26,36 @@ void nodelist_free(NodeList *list) {
     list->capacity = 0;
 }
 
+void ast_str_set(char *dst, size_t cap, const char *src, const char *field) {
+    if (!src) { dst[0] = '\0'; return; }
+    size_t n = strlen(src);
+    if (n >= cap) {
+        fprintf(stderr,
+            "[EPL Warning] value truncated to %zu chars in %s (was %zu)\n",
+            cap - 1, field, n);
+    }
+    strncpy(dst, src, cap - 1);
+    dst[cap - 1] = '\0';
+}
 
-/* ═════════════════════════════════════════════
-   NODE ALLOCATION
-   ═════════════════════════════════════════════ */
+#include <stddef.h>
+#include "ast_sizes.inc"
+
 ASTNode *ast_make_node(NodeType type, int line, int col) {
-    ASTNode *node = calloc(1, sizeof(ASTNode));
+    size_t size = ((unsigned)type < AST_NODE_SIZE_COUNT) ? AST_NODE_SIZE[type]
+                                                         : sizeof(ASTNode);
+    ASTNode *node = calloc(1, size);
     if (!node) {
         fprintf(stderr, "EPL: out of memory allocating AST node\n");
         exit(1);
     }
     node->type     = type;
     node->line     = line;
-    node->end_line = line;   /* v1.5 — updated by parser after block closes */
+    node->end_line = line;
     node->col      = col;
     return node;
 }
 
-
-/* ═════════════════════════════════════════════
-   NODE TYPE NAME
-   ═════════════════════════════════════════════ */
 const char *ast_node_type_name(NodeType type) {
     switch (type) {
         case NODE_PROGRAM:              return "PROGRAM";
@@ -92,15 +92,14 @@ const char *ast_node_type_name(NodeType type) {
         case NODE_INLINE_IF:            return "INLINE_IF";
         case NODE_COLLECTION_OP:        return "COLLECTION_OP";
         case NODE_WHERE_FILTER:         return "WHERE_FILTER";
+        case NODE_SERVE_PORT:           return "SERVE_PORT";
+        case NODE_ACTION_FORM:          return "ACTION_FORM";
+        case NODE_ACTION_BUTTON:        return "ACTION_BUTTON";
+        case NODE_ACTION_INPUT:         return "ACTION_INPUT";
         default:                        return "UNKNOWN_NODE";
     }
 }
 
-
-/* ═════════════════════════════════════════════
-   AST FREE
-   Recursively frees entire subtree.
-   ═════════════════════════════════════════════ */
 void ast_free(ASTNode *node) {
     if (!node) return;
 
@@ -182,17 +181,24 @@ void ast_free(ASTNode *node) {
             ast_free(node->as.inline_if.then_val);
             ast_free(node->as.inline_if.else_val);
             break;
+        case NODE_UPDATE_PART:
+            ast_free(node->as.update_part.selector);
+            ast_free(node->as.update_part.value);
+            break;
+        case NODE_SERVE_PORT:
+            ast_free(node->as.serve_port.port_expr);
+            nodelist_free(&node->as.serve_port.offered);
+            break;
+        case NODE_ACTION_FORM:
+        case NODE_ACTION_BUTTON:
+            nodelist_free(&node->as.action_form.inputs);
+            break;
         default:
             break;
     }
     free(node);
 }
 
-
-/* ═════════════════════════════════════════════
-   AST PRINT
-   Indented tree view for debugging.
-   ═════════════════════════════════════════════ */
 static void indent(int level) {
     for (int i = 0; i < level; i++) printf("  ");
 }
@@ -440,6 +446,27 @@ void ast_print(ASTNode *node, int depth) {
             ast_print(node->as.where_filter.collection, depth + 2);
             indent(depth + 1); printf("condition:\n");
             ast_print(node->as.where_filter.condition, depth + 2);
+            break;
+
+        case NODE_SERVE_PORT:
+            printf("[SERVE_PORT] offering %d\n", node->as.serve_port.offered.count);
+            ast_print(node->as.serve_port.port_expr, depth + 1);
+            for (int i = 0; i < node->as.serve_port.offered.count; i++)
+                ast_print(node->as.serve_port.offered.items[i], depth + 1);
+            break;
+
+        case NODE_ACTION_FORM:
+        case NODE_ACTION_BUTTON:
+            printf("[%s] for \"%s\" label=\"%s\" after=%d\n",
+                ast_node_type_name(node->type), node->as.action_form.activity,
+                node->as.action_form.label, node->as.action_form.after);
+            for (int i = 0; i < node->as.action_form.inputs.count; i++)
+                ast_print(node->as.action_form.inputs.items[i], depth + 1);
+            break;
+
+        case NODE_ACTION_INPUT:
+            printf("[ACTION_INPUT] \"%s\" label=\"%s\"\n",
+                node->as.action_input.name, node->as.action_input.label);
             break;
 
         default:

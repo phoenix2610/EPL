@@ -1,5 +1,3 @@
-# EPL Interpreter Test
-
 set name as "EPL"
 set version as 1
 set ready as true
@@ -43,14 +41,12 @@ for each fruit in fruits
     show "Fruit: " + fruit
 !
 
-# Activity call test
 to greet, return "Hello from activity!"!
 set msg by greet
 show msg
 
-# Activity with args
-to square, return x times x!
-set sq by square 4
+to square taking n, return n times n!
+set sq by square with 4
 show "Square of 4: " + sq
 
 show "All tests passed!"

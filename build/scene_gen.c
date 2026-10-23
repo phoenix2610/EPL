@@ -8,15 +8,6 @@
 #include "binding.h"
 #include "codegen.h"
 
-/* ─────────────────────────────────────────────
-   EPL Scene Generator — scene_gen.c  (v1.6)
-   Generates Three.js scene from canvas3d AST
-   ───────────────────────────────────────────── */
-
-
-/* ═══════════════════════════════════════════
-   STATUS HELPERS
-   ═══════════════════════════════════════════ */
 static const char *status_hex(Node3DStatus s) {
     switch(s) {
         case NODE3D_COMPLETED:  return "#8B7FE8";
@@ -71,10 +62,6 @@ static const char *color_to_hex(const char *color) {
     return "#8B7FE8";
 }
 
-
-/* ═══════════════════════════════════════════
-   BACKGROUND
-   ═══════════════════════════════════════════ */
 static void write_background(FILE *js, Background3D bg,
                               const char *custom) {
     switch(bg) {
@@ -178,10 +165,6 @@ static void write_lighting(FILE *js) {
         "  scene.add(fB);\n\n");
 }
 
-
-/* ═══════════════════════════════════════════
-   CORE STAR
-   ═══════════════════════════════════════════ */
 static void write_core_star(FILE *js, ASTNode *node) {
     const char *color   = node->as.core_star.color;
     const char *label   = node->as.core_star.label;
@@ -220,7 +203,6 @@ static void write_core_star(FILE *js, ASTNode *node) {
         "  coreGrp.add(coreMesh);\n\n",
         hex, emissive, label);
 
-    /* Glow shells */
     fprintf(js,
         "  /* Core glow shells */\n"
         "  [  [24,'%s',0.22],\n"
@@ -239,7 +221,6 @@ static void write_core_star(FILE *js, ASTNode *node) {
         "  });\n\n",
         hex, hex, hex, hex, hex);
 
-    /* Armillary rings */
     fprintf(js,
         "  /* Armillary rings */\n"
         "  armRings = [];\n"
@@ -262,10 +243,6 @@ static void write_core_star(FILE *js, ASTNode *node) {
         "  });\n\n");
 }
 
-
-/* ═══════════════════════════════════════════
-   ORBITAL RING + NODES
-   ═══════════════════════════════════════════ */
 static void write_orbital_ring(FILE *js, ASTNode *ring,
                                 int ring_idx) {
     double      radius = ring->as.orbital_ring.radius;
@@ -274,7 +251,6 @@ static void write_orbital_ring(FILE *js, ASTNode *ring,
     double      tilt_z = ring->as.orbital_ring.tilt_z;
     const char *hex    = color_to_hex(ring->as.orbital_ring.color);
 
-    /* Count completed for arc */
     int total = ring->as.orbital_ring.nodes.count;
     int done  = 0;
     for (int i = 0; i < total; i++) {
@@ -312,7 +288,6 @@ static void write_orbital_ring(FILE *js, ASTNode *ring,
         radius, hex,
         radius, hex);
 
-    /* Completion arc */
     if (pct > 0.01) {
         fprintf(js,
             "    /* Completion arc %.0f%% */\n"
@@ -343,7 +318,6 @@ static void write_orbital_ring(FILE *js, ASTNode *ring,
             radius, radius, hex);
     }
 
-    /* Tick marks */
     fprintf(js,
         "    /* Tick marks */\n"
         "    for (var k=0; k<%d; k++) {\n"
@@ -367,11 +341,9 @@ static void write_orbital_ring(FILE *js, ASTNode *ring,
         total > 0 ? total + 4 : 8,
         hex, radius, radius);
 
-    /* Node objects array for this ring */
     fprintf(js,
         "    var ringNodes = [];\n\n");
 
-    /* Individual nodes */
     for (int i = 0; i < ring->as.orbital_ring.nodes.count; i++) {
         ASTNode *nd = ring->as.orbital_ring.nodes.items[i];
         if (!nd || nd->type != NODE_NODE3D) continue;
@@ -418,7 +390,6 @@ static void write_orbital_ring(FILE *js, ASTNode *ring,
             nhex, emhex, emint,
             lbl, slbl, ring_idx);
 
-        /* Glow shells */
         fprintf(js,
             "      /* Glow shells */\n"
             "      [[10,%.3f],[17,%.3f],[26,%.3f]]\n"
@@ -436,7 +407,6 @@ static void write_orbital_ring(FILE *js, ASTNode *ring,
             pending ? 0.005: 0.03,
             nhex);
 
-        /* Pulse ring — completed */
         if (done_n) {
             fprintf(js,
                 "      /* Pulse ring */\n"
@@ -453,7 +423,6 @@ static void write_orbital_ring(FILE *js, ASTNode *ring,
                 hex);
         }
 
-        /* Warn ring — overdue */
         if (over_n) {
             fprintf(js,
                 "      /* Warn ring */\n"
@@ -469,7 +438,6 @@ static void write_orbital_ring(FILE *js, ASTNode *ring,
                 "      node.userData.warnRing = wr;\n\n");
         }
 
-        /* Ghost trail */
         fprintf(js,
             "      /* Ghost trail */\n"
             "      var ghosts = [];\n"
@@ -502,7 +470,6 @@ static void write_orbital_ring(FILE *js, ASTNode *ring,
             angle, radius, speed);
     }
 
-    /* Push ring to scene + allRings */
     fprintf(js,
         "    scene.add(grp);\n"
         "    allRings.push({\n"
@@ -515,10 +482,6 @@ static void write_orbital_ring(FILE *js, ASTNode *ring,
         speed, radius);
 }
 
-
-/* ═══════════════════════════════════════════
-   CAMERA + INTERACTION
-   ═══════════════════════════════════════════ */
 static void write_camera_and_interaction(FILE *js) {
     fprintf(js,
         "  /* ── Camera setup ── */\n"
@@ -599,7 +562,6 @@ static void write_camera_and_interaction(FILE *js) {
         "    e.preventDefault();\n"
         "  }, {passive:false});\n\n");
 
-    /* Raycaster */
     fprintf(js,
         "  /* ── Raycaster ── */\n"
         "  var raycaster = new THREE.Raycaster();\n"
@@ -703,10 +665,6 @@ static void write_camera_and_interaction(FILE *js) {
         "  }\n\n");
 }
 
-
-/* ═══════════════════════════════════════════
-   ANIMATION LOOP
-   ═══════════════════════════════════════════ */
 static void write_animation_loop(FILE *js) {
     fprintf(js,
         "  /* ── Animation loop ── */\n"
@@ -790,10 +748,6 @@ static void write_animation_loop(FILE *js) {
         "  animate();\n");
 }
 
-
-/* ═══════════════════════════════════════════
-   LEGEND
-   ═══════════════════════════════════════════ */
 static void write_legend(FILE *js) {
     fprintf(js,
         "  /* ── Legend ── */\n"
@@ -824,13 +778,8 @@ static void write_legend(FILE *js) {
         "  })();\n\n");
 }
 
-
-/* ═══════════════════════════════════════════
-   PANEL HTML OVERLAY
-   ═══════════════════════════════════════════ */
 static void write_overlay_html(FILE *html,
                                 ASTNode *page_node) {
-    /* Tooltip */
     fprintf(html,
         "  <div id='epl-tt'></div>\n\n"
 
@@ -856,7 +805,6 @@ static void write_overlay_html(FILE *html,
         "    </div>\n"
         "  </div>\n\n");
 
-    /* Panels and drawers from page children */
     if (!page_node) return;
     NodeList *children = &page_node->as.make_page.children;
     for (int i = 0; i < children->count; i++) {
@@ -870,7 +818,6 @@ static void write_overlay_html(FILE *html,
             if (child->as.panel3d.position == PANEL_BOTTOM) pc="ep-panel-bottom";
             fprintf(html,
                 "  <div class='epl-overlay-panel %s'>\n", pc);
-            /* Render panel children as HTML */
             NodeList *pc_list = &child->as.panel3d.children;
             for (int j = 0; j < pc_list->count; j++) {
                 ASTNode *pc_child = pc_list->items[j];
@@ -924,10 +871,6 @@ static void write_overlay_html(FILE *html,
     }
 }
 
-
-/* ═══════════════════════════════════════════
-   CSS OUTPUT
-   ═══════════════════════════════════════════ */
 static void write_css(FILE *css, SceneCtx *ctx) {
     fprintf(css,
         "/* EPL v1.6 Generated Styles */\n"
@@ -950,7 +893,6 @@ static void write_css(FILE *css, SceneCtx *ctx) {
         "#epl-canvas:active { cursor:grabbing; }\n\n",
         ctx->theme_text, ctx->theme_bg);
 
-    /* Tooltip */
     fprintf(css,
         "#epl-tt {\n"
         "  position:absolute; z-index:20;\n"
@@ -965,7 +907,6 @@ static void write_css(FILE *css, SceneCtx *ctx) {
         "  box-shadow:0 2px 20px rgba(80,60,200,0.12);\n"
         "}\n\n");
 
-    /* Detail panel */
     fprintf(css,
         "#epl-panel {\n"
         "  position:absolute; top:70px; right:-300px;\n"
@@ -1035,7 +976,6 @@ static void write_css(FILE *css, SceneCtx *ctx) {
         "  line-height:1.65; font-style:italic;\n"
         "}\n\n");
 
-    /* Overlay panels */
     fprintf(css,
         ".epl-overlay-panel {\n"
         "  position:absolute; z-index:10;\n"
@@ -1087,7 +1027,6 @@ static void write_css(FILE *css, SceneCtx *ctx) {
         "}\n\n",
         ctx->theme_accent);
 
-    /* Drawer */
     fprintf(css,
         ".epl-drawer {\n"
         "  position:absolute; top:0; bottom:0; z-index:25;\n"
@@ -1123,7 +1062,6 @@ static void write_css(FILE *css, SceneCtx *ctx) {
         "  flex:1; overflow-y:auto; padding:8px 12px 16px;\n"
         "}\n\n");
 
-    /* Legend */
     fprintf(css,
         "#epl-legend {\n"
         "  position:absolute; bottom:0; left:0; right:0;\n"
@@ -1146,10 +1084,6 @@ static void write_css(FILE *css, SceneCtx *ctx) {
         "}\n");
 }
 
-
-/* ═══════════════════════════════════════════
-   SHELL HTML
-   ═══════════════════════════════════════════ */
 static void write_shell_html(SceneCtx *ctx,
                               ASTNode *page_node,
                               const char *title) {
@@ -1214,10 +1148,6 @@ static void write_shell_html(SceneCtx *ctx,
     fprintf(html, "</body>\n</html>\n");
 }
 
-
-/* ═══════════════════════════════════════════
-   FULL SCENE JS
-   ═══════════════════════════════════════════ */
 static void write_full_scene_js(SceneCtx *ctx,
                                  ASTNode *canvas) {
     FILE *js = ctx->js;
@@ -1261,7 +1191,6 @@ static void write_full_scene_js(SceneCtx *ctx,
     write_lighting(js);
     write_camera_and_interaction(js);
 
-    /* Orbital rings and core star */
     int ring_idx = 0;
     for (int i = 0; i < canvas->as.canvas3d.children.count; i++) {
         ASTNode *child = canvas->as.canvas3d.children.items[i];
@@ -1278,13 +1207,8 @@ static void write_full_scene_js(SceneCtx *ctx,
     fprintf(js, "})();\n");
 }
 
-
-/* ═══════════════════════════════════════════
-   PUBLIC ENTRY POINT
-   ═══════════════════════════════════════════ */
 void scene_gen_page(Interpreter *interp, Env *env,
                     ASTNode *page_node) {
-    /* Find canvas3d child */
     ASTNode  *canvas   = NULL;
     NodeList *children = &page_node->as.make_page.children;
     for (int i = 0; i < children->count; i++) {
@@ -1296,14 +1220,12 @@ void scene_gen_page(Interpreter *interp, Env *env,
     }
     if (!canvas) return;
 
-    /* Build base filename (strip extension) */
     char base[512];
     strncpy(base, page_node->as.make_page.filename,
             sizeof(base)-1);
     char *dot = strrchr(base, '.');
     if (dot) *dot = '\0';
 
-    /* Open output files */
     char path[600];
 
     snprintf(path, sizeof(path), "%s.scene.js",  base);
@@ -1328,12 +1250,10 @@ void scene_gen_page(Interpreter *interp, Env *env,
         return;
     }
 
-    /* Theme */
     ThemeCSS theme = codegen_get_theme(
         page_node->as.make_page.theme,
         page_node->as.make_page.color);
 
-    /* Build context */
     SceneCtx ctx;
     memset(&ctx, 0, sizeof(ctx));
     ctx.js      = js;
@@ -1350,12 +1270,10 @@ void scene_gen_page(Interpreter *interp, Env *env,
     strncpy(ctx.theme_text,    theme.text,     sizeof(ctx.theme_text)-1);
     strncpy(ctx.theme_border,  theme.border,   sizeof(ctx.theme_border)-1);
 
-    /* Page title */
     const char *title = canvas->as.canvas3d.name;
     if (!title || strlen(title) == 0)
         title = "EPL Scene";
 
-    /* Generate */
     write_css(css, &ctx);
     write_full_scene_js(&ctx, canvas);
 
@@ -1371,7 +1289,6 @@ void scene_gen_page(Interpreter *interp, Env *env,
     fclose(css);
     fclose(html);
 
-    /* Update .epbind */
     binding_update(interp->source_file, page_node->as.make_page.filename, "html-3d");
 
     snprintf(path, sizeof(path), "%s.scene.js",  base);
