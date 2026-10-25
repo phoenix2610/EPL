@@ -1,0 +1,8 @@
+set score as 75
+if score at least 90 then
+    show "A"
+otherwise if score at least 60 then
+    show "Pass"
+otherwise
+    show "Fail"
+!

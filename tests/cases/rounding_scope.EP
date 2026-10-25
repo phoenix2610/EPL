@@ -1,0 +1,8 @@
+# `rounded to` and `as currency` apply to the whole calculation on their left,
+# stopping at the last piece of text.
+set total as 10
+set count as 3
+show total divided by count rounded to 2
+show "Average: " plus total divided by count rounded to 2
+show total times 1.08 as currency
+show (total divided by count) rounded to 1

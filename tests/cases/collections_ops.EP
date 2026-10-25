@@ -1,0 +1,14 @@
+set scores as [10, 20, 30]
+show total of scores
+show average of scores
+show maximum of scores
+show minimum of scores
+show length of scores
+show size of scores
+set total as 0
+for i from 1 to 5
+    update total as total plus i
+!
+show total
+set average as 99
+show average

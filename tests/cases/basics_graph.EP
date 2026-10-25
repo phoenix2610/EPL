@@ -1,0 +1,5 @@
+set g as graph
+link customer to store in g
+link store to warehouse in g
+set path as route from customer to warehouse in g
+show path

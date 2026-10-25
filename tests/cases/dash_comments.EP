@@ -1,0 +1,5 @@
+# `--` starts a comment, like `#`.
+-- a whole-line comment
+set a as 10 divided by 2        -- trailing comment
+show a
+show 7 minus 2   -- 5

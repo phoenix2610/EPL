@@ -1,0 +1,21 @@
+# Statements after an `otherwise if` chain run no matter which branch fired.
+# Regression: they used to be folded into the first if's else branch, so
+# "after" only printed when the first condition was false.
+set a as true
+if a then
+    show "first"
+otherwise if a then
+    show "second"
+!
+show "after"
+set n as 55
+if n at least 90 then
+    show "A"
+otherwise if n at least 60 then
+    show "B"
+otherwise if n at least 50 then
+    show "C"
+otherwise
+    show "F"
+!
+show "end"

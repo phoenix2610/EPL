@@ -1,0 +1,7 @@
+set name as "Phoenix"
+update name as "Tathya"
+show name
+set n as 42
+show n
+set flag as true
+show flag

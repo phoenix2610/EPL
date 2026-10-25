@@ -1,0 +1,8 @@
+set doc as parse json "{\"user\":{\"name\":\"tathya\",\"tier\":2},\"ok\":true}"
+set user as field "user" from doc
+set name as field "name" from user
+show name
+set name2 as field "user.name" from doc
+show name2
+set tier as field "user.tier" from doc
+show tier

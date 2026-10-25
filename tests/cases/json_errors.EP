@@ -1,0 +1,12 @@
+attempt
+    set bad as parse json "{oops"
+if fails then
+    show "caught malformed"
+!
+set doc as parse json "{\"a\":1}"
+attempt
+    show field "nope" from doc
+if fails then
+    show "caught missing field"
+!
+show "alive"

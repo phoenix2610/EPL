@@ -1,0 +1,7 @@
+attempt
+    set r by no_such_activity with 1
+    show "should not reach"
+if fails then
+    show "caught unknown activity"
+!
+show "alive"

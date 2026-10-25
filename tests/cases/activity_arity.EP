@@ -1,0 +1,13 @@
+to divide taking a, b
+    return a divided by b
+!
+attempt
+    set r by divide with 10
+if fails then
+    show "caught arity: " plus error message
+!
+to many taking p1, p2, p3, p4, p5, p6, p7, p8
+    return p8
+!
+set big by many with 1 and 2 and 3 and 4 and 5 and 6 and 7 and 8
+show big

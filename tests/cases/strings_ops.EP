@@ -1,0 +1,5 @@
+set csv as "alice,30,engineer"
+set parts as csv split by ","
+show parts
+set t as "  Hi  " trimmed
+show "[" plus t plus "]"

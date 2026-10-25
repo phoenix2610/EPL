@@ -1,0 +1,14 @@
+# Native hashing and randomness — no shell involved.
+show sha256 of "abc"
+show sha256 of ""
+show size of (random token of 32)
+set t as random token of 5
+show size of t
+set ok as true
+repeat 200 times
+    set d as random number from 1 to 6
+    if d less than 1 or d greater than 6 then
+        update ok as false
+    !
+!
+show ok

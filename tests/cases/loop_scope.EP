@@ -1,0 +1,20 @@
+# Each loop pass starts with a fresh scope: a name created in one pass is
+# gone in the next, while names from outside the loop persist.
+set outer as 0
+for i from 1 to 3
+    attempt
+        show "seen from last pass: " plus note
+    if fails then
+        show "pass " plus i plus ": no leftover"
+    !
+    set note as i
+    update outer as outer plus note
+!
+show outer
+for each word in ["a", "b"]
+    set tmp as word plus word
+    show tmp
+!
+repeat 2 times with k
+    show k
+!

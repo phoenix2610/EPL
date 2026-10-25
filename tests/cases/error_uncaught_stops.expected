@@ -1,0 +1,3 @@
+before
+handler: boom
+after

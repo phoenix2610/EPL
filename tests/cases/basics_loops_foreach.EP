@@ -1,0 +1,4 @@
+set numbers as [1, 2, 3]
+for each i in numbers
+    show i
+!

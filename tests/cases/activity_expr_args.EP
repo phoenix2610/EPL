@@ -1,0 +1,14 @@
+# Arguments to an activity are full arithmetic expressions.
+# Regression: `with 1 plus 1` used to loop in the parser until OOM.
+to add taking a, b
+    return a plus b
+!
+set i as 4
+set r by add with i plus 1 and 2
+show r
+set r by add with i times 2 and i minus 1
+show r
+repeat 3 times with k
+    set r by add with k plus 1 and k modulo 2
+    show r
+!

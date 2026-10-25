@@ -1,0 +1,7 @@
+attempt
+    set c as read file "/nonexistent/definitely/missing.txt"
+    show "should not reach"
+if fails then
+    show "caught file error"
+!
+show "alive"

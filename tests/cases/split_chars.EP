@@ -1,0 +1,7 @@
+# `split by ""` gives one item per character.
+# Regression: an empty separator looped until the process was killed.
+set letters as "héllo" split by ""
+show letters
+show size of letters
+show reversed letters joined by ""
+show size of ("" split by "")

@@ -1,0 +1,12 @@
+to withdraw taking balance, amount
+    if amount is greater than balance then
+        fail with "insufficient funds"
+    !
+    return balance minus amount
+!
+attempt
+    set r by withdraw with 50 and 100
+    show "should not reach"
+if fails then
+    show "caught: " plus error message
+!

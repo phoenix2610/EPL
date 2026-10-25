@@ -1,0 +1,8 @@
+show "before"
+attempt
+    fail with "boom"
+    show "unreachable"
+if fails then
+    show "handler: " plus error message
+!
+show "after"

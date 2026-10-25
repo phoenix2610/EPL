@@ -1,0 +1,16 @@
+# Reading a name that was never set is an error, not a silent null.
+set total as 5
+attempt
+    show totl
+if fails then
+    show error message
+!
+attempt
+    set prices as [3, 1, 2]
+    set s as sort prices
+if fails then
+    show error message
+!
+# Inside a record filter a missing column still reads as null.
+set rows as parse json "[{\"a\":1},{\"b\":2}]"
+show size of (rows where a is 1)

@@ -1,0 +1,6 @@
+set parts as "a,b,c,d" split by ","
+show size of parts
+show item 0 of parts
+repeat size of parts times with i
+    show item i of parts
+!

@@ -1,0 +1,4 @@
+set scores as [85, 92, 78, 95]
+show scores
+set passed as scores where score at least 90
+show passed

@@ -1,0 +1,12 @@
+describe divide as "Divides a by b"
+to divide taking a, b
+    return a divided by b
+!
+set r by divide with 10 and 2
+show r
+
+to parse_record taking record, sep
+    return record split by sep
+!
+set out by parse_record with "bob,42" and ","
+show out

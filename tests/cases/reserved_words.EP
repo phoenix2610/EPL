@@ -1,0 +1,22 @@
+set status as "active"
+show status
+set type as "admin"
+show type
+set value as 42
+show value
+set user as "ada"
+show user
+set input as "raw"
+show input
+set id as 7
+show id
+set class as "A"
+show class
+set line as "row1"
+show line
+set node as "n1"
+show node
+set items as [1, 2]
+for each i in items
+    show i
+!

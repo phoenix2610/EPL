@@ -1,0 +1,5 @@
+set parts as "a,b,c" split by ","
+set n as size of parts
+show n
+set second as item 2 of parts
+show second

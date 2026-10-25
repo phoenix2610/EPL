@@ -1,0 +1,7 @@
+set doc as parse json "{\"person\":{\"name\":\"tathya\",\"tier\":2},\"tags\":[\"a\",\"b\"],\"ok\":true}"
+show to json doc
+show field "person.name" from doc
+show field "tags.0" from doc
+show field "ok" from doc
+set built as parse json "{\"a\":{\"b\":{\"c\":\"deep\"}}}"
+show field "a.b.c" from built

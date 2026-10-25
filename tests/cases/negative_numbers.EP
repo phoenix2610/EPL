@@ -1,0 +1,7 @@
+# Unary minus. `3 minus -2` used to evaluate as (3 - null) - 2 = 1.
+show -3
+show 3 minus -2
+set x as 4
+show x times -1
+show -x plus 10
+show minimum of [1, -2, 3]

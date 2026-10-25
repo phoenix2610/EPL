@@ -1,0 +1,6 @@
+to square taking n, return n times n!
+set s by square with 7
+show s
+to greet, return "hi"!
+set g by greet
+show g

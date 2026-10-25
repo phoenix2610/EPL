@@ -1,0 +1,19 @@
+# Record keys, text indexing, character codes, `is empty`.
+set stock as parse json "{\"tea\":12,\"rice\":0,\"oil\":5}"
+show size of stock
+show keys of stock
+for each item_name in stock
+    if field item_name from stock is 0 then
+        show item_name plus " is out of stock"
+    !
+!
+show item 0 of "héllo"
+show size of "héllo"
+set shifted as ""
+for each letter in "HAL"
+    update shifted as shifted plus character with code (code of letter plus 1)
+!
+show shifted
+show empty list is empty
+show "" is empty
+show stock is not empty

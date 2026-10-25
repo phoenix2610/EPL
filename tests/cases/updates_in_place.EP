@@ -1,0 +1,17 @@
+# Lists and records can be changed in place.
+set scores as [70, 80, 90]
+update item 1 of scores as 85
+show scores
+attempt
+    update item 3 of scores as 1
+if fails then
+    show error message
+!
+set customer as empty record
+update field "name" of customer as "Asha"
+update field "visits" of customer as 1
+update field "visits" of customer as (field "visits" from customer) plus 1
+show to json customer
+set order as parse json "{\"ship\":{\"city\":\"Pune\"}}"
+update field "ship.city" of order as "Mumbai"
+show field "ship.city" from order

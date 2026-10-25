@@ -1,0 +1,7 @@
+set a as 10 divided by 2
+show a
+set b as 3 plus 4
+show b
+set c as 10 minus 3
+show c
+show "cat: " + "enation"
